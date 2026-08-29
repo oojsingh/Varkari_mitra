@@ -10,11 +10,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-app.use(cors());
+const allowedOrigin = process.env.CORS_ORIGIN || '';
+const corsMiddleware = allowedOrigin ? cors({ origin: allowedOrigin }) : cors();
+app.use(corsMiddleware);
 app.use(express.json());
 
-app.use('/admin', express.static(join(__dirname, 'admin')));
-app.get('/', (req, res) => res.redirect('/admin'));
+app.use('/admin', express.static(join(__dirname, 'public')));
+
+app.get('/', (req, res) => res.json({ status: 'ok', message: 'Varithon backend API', docs: '/api' }));
 
 function generateToken() {
   return 'tok_' + Math.random().toString(36).substring(2) + Date.now().toString(36);

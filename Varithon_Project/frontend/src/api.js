@@ -1,4 +1,4 @@
-const API_BASE = 'https://varkari-mitra.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://varkari-mitra.onrender.com/api';
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('vm_token');
