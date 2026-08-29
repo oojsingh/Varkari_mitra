@@ -1,0 +1,2 @@
+-adddontusewarn
+-dontwarn **

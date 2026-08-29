@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Varkari Mitra</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="name">Full Name</string>
+    <string name="submit">Submit</string>
+    <string name="logout">Logout</string>
+    <string name="loading">Loading...</string>
+    <string name="varkari_dashboard">Varkari Dashboard</string>
+    <string name="mitra_dashboard">Varkari Mitra Dashboard</string>
+    <string name="sevak_dashboard">Vari Sevak Dashboard</string>
+</resources>
