@@ -28,6 +28,8 @@ export const api = {
   emergencyReport: (data) => request('/emergency/report', { method: 'POST', body: JSON.stringify(data) }),
   trafficUpdate: (data) => request('/traffic/update-vari-location', { method: 'POST', body: JSON.stringify(data) }),
   adminAll: () => request('/admin/all'),
+  palkhiList: () => request('/palkhi/list'),
+  palkhiSchedule: (name, year) => request(`/palkhi/${encodeURIComponent(name)}?year=${year || new Date().getFullYear()}`),
 };
 
 export function getToken() { return localStorage.getItem('vm_token'); }

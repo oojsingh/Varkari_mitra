@@ -80,7 +80,7 @@ export default function VarkariDashboard({ user, onLogout }) {
       <div className="dash-grid">
         <section className="card map-full">
           <h3>🗺️ Live Palkhi Route Map</h3>
-          <div style={{ height: '400px', width: '100%' }}>
+          <div style={{ height: '520px', width: '100%' }}>
             <FunctionalMap selectedSector={selectedSector} onSectorSelect={setSelectedSector} />
           </div>
           {selectedSector && (
