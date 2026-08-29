@@ -51,7 +51,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('vm_token');
     if (token) {
-      fetch('http://localhost:8080/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      fetch('https://varkari-mitra.onrender.com/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(data => { if (data.status === 'ok') setUser(data.user); })
         .catch(() => localStorage.removeItem('vm_token'))

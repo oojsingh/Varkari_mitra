@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = 'https://varkari-mitra.onrender.com/api';
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('vm_token');
