@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import pool from './db.js';
 
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -14,342 +16,335 @@ app.use(express.json());
 app.use('/admin', express.static(join(__dirname, 'admin')));
 app.get('/', (req, res) => res.redirect('/admin'));
 
-const trafficStore = new Map();
-const emergencyStore = new Map();
-const broadcastStore = new Map();
-const usersStore = new Map();
-const devicesStore = new Map();
-const sessionsStore = new Map();
-const familyStore = new Map();
-const sevasStore = new Map();
-const sanitationStore = new Map();
-const lostChildStore = new Map();
-
 function generateToken() {
   return 'tok_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
-function getUserByEmail(email) {
-  for (const u of usersStore.values()) {
-    if (u.email === email) return u;
-  }
-  return null;
+async function getUserByEmail(email) {
+  const res = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  return res.rows[0] || null;
 }
 
-function getUserByToken(token) {
-  const session = sessionsStore.get(token);
-  if (!session) return null;
-  return usersStore.get(session.userId) || null;
+async function getUserByToken(token) {
+  const res = await pool.query(
+    'SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = $1 AND s.expires_at > NOW()',
+    [token]
+  );
+  return res.rows[0] || null;
 }
 
-app.post('/api/auth/register', (req, res) => {
+async function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+  const user = await getUserByToken(token);
+  if (!user) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+  req.user = user;
+  next();
+}
+
+app.post('/api/auth/register', async (req, res) => {
   const { email, password, name, role } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ status: 'error', message: 'Email and password required' });
   }
-  if (getUserByEmail(email)) {
+  const existing = await getUserByEmail(email);
+  if (existing) {
     return res.status(409).json({ status: 'error', message: 'User already exists' });
   }
   const userId = 'usr_' + Date.now();
   const userRole = role || 'varkari';
-  const user = { id: userId, email, password, name: name || email.split('@')[0], role: userRole, kycStatus: userRole === 'varkari_mitra' ? 'PENDING' : 'NOT_REQUIRED', kycData: null, createdAt: new Date().toISOString(), locationSharing: userRole === 'varkari' };
-  usersStore.set(userId, user);
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const kycStatus = userRole === 'varkari_mitra' ? 'PENDING' : 'NOT_REQUIRED';
+  const locationSharing = userRole === 'varkari';
+  await pool.query(
+    `INSERT INTO users (id, email, password_hash, name, role, kyc_status, location_sharing, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+    [userId, email, hashedPassword, name || email.split('@')[0], userRole, kycStatus, locationSharing]
+  );
   const token = generateToken();
-  sessionsStore.set(token, { userId, createdAt: new Date().toISOString() });
-  const { password: _, ...safeUser } = user;
+  await pool.query('INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES ($1, $2, NOW(), NOW() + INTERVAL \'7 days\')', [token, userId]);
+  const user = await getUserByEmail(email);
+  const { password_hash: _, ...safeUser } = user;
   res.status(201).json({ status: 'ok', token, user: safeUser });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
-  const user = getUserByEmail(email);
-  if (!user || user.password !== password) {
+  const user = await getUserByEmail(email);
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).json({ status: 'error', message: 'Invalid email or password' });
   }
   const token = generateToken();
-  sessionsStore.set(token, { userId: user.id, createdAt: new Date().toISOString() });
-  const { password: _, ...safeUser } = user;
+  await pool.query("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES ($1, $2, NOW(), NOW() + INTERVAL '7 days')", [token, user.id]);
+  const { password_hash: _, ...safeUser } = user;
   res.status(200).json({ status: 'ok', token, user: safeUser });
 });
 
-app.post('/api/auth/google', (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
   const { email, name, googleId, role } = req.body || {};
   if (!email) {
     return res.status(400).json({ status: 'error', message: 'Email required' });
   }
-  let user = getUserByEmail(email);
+  let user = await getUserByEmail(email);
   const userRole = role || 'varkari';
   if (!user) {
     const userId = 'usr_' + Date.now();
-    user = { id: userId, email, password: null, name: name || email.split('@')[0], role: userRole, kycStatus: userRole === 'varkari_mitra' ? 'PENDING' : 'NOT_REQUIRED', kycData: null, createdAt: new Date().toISOString(), googleId: googleId || null, locationSharing: userRole === 'varkari' };
-    usersStore.set(userId, user);
+    const kycStatus = userRole === 'varkari_mitra' ? 'PENDING' : 'NOT_REQUIRED';
+    const locationSharing = userRole === 'varkari';
+    await pool.query(
+      `INSERT INTO users (id, email, password_hash, name, role, kyc_status, google_id, location_sharing, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+      [userId, email, null, name || email.split('@')[0], userRole, kycStatus, googleId || null, locationSharing]
+    );
+    user = await getUserByEmail(email);
   }
   const token = generateToken();
-  sessionsStore.set(token, { userId: user.id, createdAt: new Date().toISOString() });
-  const { password: _, ...safeUser } = user;
+  await pool.query("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES ($1, $2, NOW(), NOW() + INTERVAL '7 days')", [token, user.id]);
+  const { password_hash: _, ...safeUser } = user;
   res.status(200).json({ status: 'ok', token, user: safeUser });
 });
 
-app.get('/api/auth/me', (req, res) => {
+app.get('/api/auth/me', async (req, res) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
+  const user = await getUserByToken(token);
   if (!user) {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
   }
-  const { password: _, ...safeUser } = user;
+  const { password_hash: _, ...safeUser } = user;
   res.status(200).json({ status: 'ok', user: safeUser });
 });
 
-app.post('/api/kyc/submit', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  const { name, aadhaar, role } = req.body || {};
-  user.kycStatus = 'VERIFIED';
-  user.kycData = { name, aadhaar, role, submittedAt: new Date().toISOString() };
-  if (name) user.name = name;
-  res.status(200).json({ status: 'ok', message: 'KYC verified', kyc: user.kycData });
+app.post('/api/kyc/submit', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const user = req.user;
+    const { name, aadhaar, role } = req.body || {};
+    user.kyc_status = 'VERIFIED';
+    user.kyc_data = { name, aadhaar, role, submittedAt: new Date().toISOString() };
+    if (name) user.name = name;
+    await pool.query('UPDATE users SET kyc_status = $1, kyc_data = $2, name = $3 WHERE id = $4', [user.kyc_status, user.kyc_data, user.name, user.id]);
+    res.status(200).json({ status: 'ok', message: 'KYC verified', kyc: user.kyc_data });
+  });
 });
 
-app.get('/api/kyc/status', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  res.status(200).json({ status: 'ok', kycStatus: user.kycStatus, kycData: user.kycData });
+app.get('/api/kyc/status', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    res.status(200).json({ status: 'ok', kycStatus: req.user.kyc_status, kycData: req.user.kyc_data });
+  });
 });
 
-app.post('/api/devices/register', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  const { imei, name, phone } = req.body || {};
-  const deviceId = 'dev_' + Date.now();
-  const device = { id: deviceId, userId: user.id, userName: user.name, imei: imei || deviceId, name: name || 'My Device', phone: phone || '', registeredAt: new Date().toISOString(), lastSeen: new Date().toISOString() };
-  devicesStore.set(deviceId, device);
-  res.status(201).json({ status: 'ok', device });
+app.post('/api/devices/register', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const { imei, name, phone } = req.body || {};
+    const deviceId = 'dev_' + Date.now();
+    await pool.query(
+      `INSERT INTO devices (id, user_id, user_name, imei, name, phone, registered_at, last_seen)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+      [deviceId, req.user.id, req.user.name, imei || deviceId, name || 'My Device', phone || '']
+    );
+    const device = { id: deviceId, userId: req.user.id, userName: req.user.name, imei: imei || deviceId, name: name || 'My Device', phone: phone || '', registeredAt: new Date().toISOString(), lastSeen: new Date().toISOString() };
+    res.status(201).json({ status: 'ok', device });
+  });
 });
 
-app.get('/api/devices/mine', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  const myDevices = Array.from(devicesStore.values()).filter(d => d.userId === user.id).reverse();
-  res.status(200).json({ status: 'ok', count: myDevices.length, data: myDevices });
+app.get('/api/devices/mine', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const result = await pool.query('SELECT * FROM devices WHERE user_id = $1 ORDER BY registered_at DESC', [req.user.id]);
+    res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
+  });
 });
 
-app.post('/api/devices/track', (req, res) => {
+app.post('/api/devices/track', async (req, res) => {
   const { targetEmail, targetUserId, imei } = req.body || {};
   let targetUser = null;
   if (targetEmail) {
-    targetUser = getUserByEmail(targetEmail);
+    targetUser = await getUserByEmail(targetEmail);
   } else if (targetUserId) {
-    targetUser = usersStore.get(targetUserId);
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [targetUserId]);
+    targetUser = result.rows[0];
   }
   if (!targetUser) {
     return res.status(404).json({ status: 'error', message: 'Target user not found' });
   }
-  const userDevices = Array.from(devicesStore.values()).filter(d => d.userId === targetUser.id);
-  if (userDevices.length === 0) {
+  const devicesResult = await pool.query('SELECT * FROM devices WHERE user_id = $1', [targetUser.id]);
+  if (devicesResult.rows.length === 0) {
     return res.status(404).json({ status: 'error', message: 'No devices registered for this user' });
   }
-  const device = imei ? userDevices.find(d => d.imei === imei) || userDevices[0] : userDevices[0];
-  device.lastSeen = new Date().toISOString();
-  res.status(200).json({ status: 'ok', message: 'Device tracked', device, owner: { name: targetUser.name, email: targetUser.email, kycStatus: targetUser.kycStatus, role: targetUser.role } });
+  let device;
+  if (imei) {
+    device = devicesResult.rows.find(d => d.imei === imei) || devicesResult.rows[0];
+  } else {
+    device = devicesResult.rows[0];
+  }
+  await pool.query('UPDATE devices SET last_seen = NOW() WHERE id = $1', [device.id]);
+  res.status(200).json({ status: 'ok', message: 'Device tracked', device, owner: { name: targetUser.name, email: targetUser.email, kycStatus: targetUser.kyc_status, role: targetUser.role } });
 });
 
-// eKYC for Varkari Mitra
-app.post('/api/kyc/ekyc', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  if (user.role !== 'varkari_mitra') {
-    return res.status(403).json({ status: 'error', message: 'eKYC only for Varkari Mitra' });
-  }
-  const { fullName, aadhaarNumber, address, phone, photoBase64 } = req.body || {};
-  if (!fullName || !aadhaarNumber || !phone) {
-    return res.status(400).json({ status: 'error', message: 'fullName, aadhaarNumber, phone required' });
-  }
-  user.kycStatus = 'VERIFIED';
-  user.kycData = { fullName, aadhaarNumber, address, phone, photoBase64, submittedAt: new Date().toISOString() };
-  if (fullName) user.name = fullName;
-  const { password: _, ...safeUser } = user;
-  res.status(200).json({ status: 'ok', message: 'eKYC verified successfully', user: safeUser, kyc: user.kycData });
+app.post('/api/kyc/ekyc', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const user = req.user;
+    if (user.role !== 'varkari_mitra') {
+      return res.status(403).json({ status: 'error', message: 'eKYC only for Varkari Mitra' });
+    }
+    const { fullName, aadhaarNumber, address, phone, photoBase64 } = req.body || {};
+    if (!fullName || !aadhaarNumber || !phone) {
+      return res.status(400).json({ status: 'error', message: 'fullName, aadhaarNumber, phone required' });
+    }
+    user.kyc_status = 'VERIFIED';
+    user.kyc_data = { fullName, aadhaarNumber, address, phone, photoBase64, submittedAt: new Date().toISOString() };
+    if (fullName) user.name = fullName;
+    await pool.query('UPDATE users SET kyc_status = $1, kyc_data = $2, name = $3 WHERE id = $4', [user.kyc_status, user.kyc_data, user.name, user.id]);
+    const { password_hash: _, ...safeUser } = user;
+    res.status(200).json({ status: 'ok', message: 'eKYC verified successfully', user: safeUser, kyc: user.kyc_data });
+  });
 });
 
-// Varkari location update
-app.post('/api/varkari/location', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  if (user.role !== 'varkari') {
-    return res.status(403).json({ status: 'error', message: 'Only Varkari can update location' });
-  }
-  const { latitude, longitude } = req.body || {};
-  if (latitude == null || longitude == null) {
-    return res.status(400).json({ status: 'error', message: 'latitude and longitude required' });
-  }
-  user.lastLocation = { latitude, longitude, updatedAt: new Date().toISOString() };
-  const { password: _, ...safeUser } = user;
-  res.status(200).json({ status: 'ok', message: 'Location updated', user: safeUser });
+app.post('/api/varkari/location', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const user = req.user;
+    if (user.role !== 'varkari') {
+      return res.status(403).json({ status: 'error', message: 'Only Varkari can update location' });
+    }
+    const { latitude, longitude } = req.body || {};
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({ status: 'error', message: 'latitude and longitude required' });
+    }
+    await pool.query('UPDATE users SET last_location = $1 WHERE id = $2', [{ latitude, longitude, updatedAt: new Date().toISOString() }, user.id]);
+    const updated = await getUserByEmail(user.email);
+    const { password_hash: _, ...safeUser } = updated;
+    res.status(200).json({ status: 'ok', message: 'Location updated', user: safeUser });
+  });
 });
 
-// Family member management
-app.post('/api/family/add', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  if (user.role !== 'varkari') {
-    return res.status(403).json({ status: 'error', message: 'Only Varkari can add family members' });
-  }
-  const { email, name, relation } = req.body || {};
-  if (!email || !name) {
-    return res.status(400).json({ status: 'error', message: 'email and name required' });
-  }
-  const familyId = 'fam_' + Date.now();
-  const member = { id: familyId, varkariId: user.id, varkariName: user.name, email, name, relation: relation || 'Family', addedAt: new Date().toISOString() };
-  familyStore.set(familyId, member);
-  res.status(201).json({ status: 'ok', member });
+app.post('/api/family/add', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const user = req.user;
+    if (user.role !== 'varkari') {
+      return res.status(403).json({ status: 'error', message: 'Only Varkari can add family members' });
+    }
+    const { email, name, relation } = req.body || {};
+    if (!email || !name) {
+      return res.status(400).json({ status: 'error', message: 'email and name required' });
+    }
+    const familyId = 'fam_' + Date.now();
+    await pool.query(
+      `INSERT INTO family (id, varkari_id, varkari_name, email, name, relation, added_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+      [familyId, user.id, user.name, email, name, relation || 'Family']
+    );
+    const member = { id: familyId, varkariId: user.id, varkariName: user.name, email, name, relation: relation || 'Family', addedAt: new Date().toISOString() };
+    res.status(201).json({ status: 'ok', member });
+  });
 });
 
-app.get('/api/family/mine', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  const members = Array.from(familyStore.values()).filter(m => m.varkariId === user.id).reverse();
-  res.status(200).json({ status: 'ok', count: members.length, data: members });
+app.get('/api/family/mine', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const result = await pool.query('SELECT * FROM family WHERE varkari_id = $1 ORDER BY added_at DESC', [req.user.id]);
+    res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
+  });
 });
 
-app.get('/api/family/track/:varkariId', (req, res) => {
+app.get('/api/family/track/:varkariId', async (req, res) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.replace('Bearer ', '');
-  const viewer = getUserByToken(token);
+  const viewer = await getUserByToken(token);
   if (!viewer) {
     return res.status(401).json({ status: 'error', message: 'Unauthorized' });
   }
   const varkariId = req.params.varkariId;
-  const varkari = usersStore.get(varkariId);
+  const result = await pool.query('SELECT * FROM users WHERE id = $1', [varkariId]);
+  const varkari = result.rows[0];
   if (!varkari || varkari.role !== 'varkari') {
     return res.status(404).json({ status: 'error', message: 'Varkari not found' });
   }
-  const isFamily = Array.from(familyStore.values()).some(m => m.varkariId === varkariId && m.email === viewer.email);
+  const familyResult = await pool.query('SELECT * FROM family WHERE varkari_id = $1 AND email = $2', [varkariId, viewer.email]);
+  const isFamily = familyResult.rows.length > 0;
   if (!isFamily && varkari.id !== viewer.id) {
     return res.status(403).json({ status: 'error', message: 'Not authorized to view this location' });
   }
-  if (!varkari.locationSharing) {
+  if (!varkari.location_sharing) {
     return res.status(200).json({ status: 'ok', sharing: false, message: 'Location sharing disabled' });
   }
-  res.status(200).json({ status: 'ok', sharing: true, location: varkari.lastLocation, varkari: { id: varkari.id, name: varkari.name, email: varkari.email } });
+  res.status(200).json({ status: 'ok', sharing: true, location: varkari.last_location, varkari: { id: varkari.id, name: varkari.name, email: varkari.email } });
 });
 
-app.put('/api/varkari/sharing', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  if (user.role !== 'varkari') {
-    return res.status(403).json({ status: 'error', message: 'Only Varkari can change sharing' });
-  }
-  const { enabled } = req.body || {};
-  user.locationSharing = !!enabled;
-  const { password: _, ...safeUser } = user;
-  res.status(200).json({ status: 'ok', sharing: user.locationSharing, user: safeUser });
+app.put('/api/varkari/sharing', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const user = req.user;
+    if (user.role !== 'varkari') {
+      return res.status(403).json({ status: 'error', message: 'Only Varkari can change sharing' });
+    }
+    const { enabled } = req.body || {};
+    await pool.query('UPDATE users SET location_sharing = $1 WHERE id = $2', [!!enabled, user.id]);
+    const updated = await getUserByEmail(user.email);
+    const { password_hash: _, ...safeUser } = updated;
+    res.status(200).json({ status: 'ok', sharing: updated.location_sharing, user: safeUser });
+  });
 });
 
-// Seva marketplace
-app.post('/api/sevas/create', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  if (user.role !== 'vari_sevak') {
-    return res.status(403).json({ status: 'error', message: 'Only Vari Sevak can create sevas' });
-  }
-  const { title, description, category, price, location, availableFrom, availableTo } = req.body || {};
-  if (!title) {
-    return res.status(400).json({ status: 'error', message: 'title required' });
-  }
-  const sevaId = 'sev_' + Date.now();
-  const seva = { id: sevaId, sevakId: user.id, sevakName: user.name, title, description: description || '', category: category || 'General', price: price || 0, location: location || '', availableFrom: availableFrom || null, availableTo: availableTo || null, createdAt: new Date().toISOString() };
-  sevasStore.set(sevaId, seva);
-  res.status(201).json({ status: 'ok', seva });
+app.post('/api/sevas/create', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const user = req.user;
+    if (user.role !== 'vari_sevak') {
+      return res.status(403).json({ status: 'error', message: 'Only Vari Sevak can create sevas' });
+    }
+    const { title, description, category, price, location, availableFrom, availableTo } = req.body || {};
+    if (!title) {
+      return res.status(400).json({ status: 'error', message: 'title required' });
+    }
+    const sevaId = 'sev_' + Date.now();
+    await pool.query(
+      `INSERT INTO sevas (id, sevak_id, sevak_name, title, description, category, price, location, available_from, available_to, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
+      [sevaId, user.id, user.name, title, description || '', category || 'General', price || 0, location || '', availableFrom || null, availableTo || null]
+    );
+    const seva = { id: sevaId, sevakId: user.id, sevakName: user.name, title, description: description || '', category: category || 'General', price: price || 0, location: location || '', availableFrom: availableFrom || null, availableTo: availableTo || null, createdAt: new Date().toISOString() };
+    res.status(201).json({ status: 'ok', seva });
+  });
 });
 
-app.get('/api/sevas', (req, res) => {
-  const sevas = Array.from(sevasStore.values()).reverse();
-  res.status(200).json({ status: 'ok', count: sevas.length, data: sevas });
+app.get('/api/sevas', async (req, res) => {
+  const result = await pool.query('SELECT * FROM sevas ORDER BY created_at DESC');
+  res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
 });
 
-app.get('/api/sevas/mine', (req, res) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  const user = getUserByToken(token);
-  if (!user) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-  }
-  const mySevas = Array.from(sevasStore.values()).filter(s => s.sevakId === user.id).reverse();
-  res.status(200).json({ status: 'ok', count: mySevas.length, data: mySevas });
+app.get('/api/sevas/mine', async (req, res) => {
+  await requireAuth(req, res, async () => {
+    const result = await pool.query('SELECT * FROM sevas WHERE sevak_id = $1 ORDER BY created_at DESC', [req.user.id]);
+    res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
+  });
 });
 
-// Nirmal Wari Sanitation Hub - receives alerts from the sanitation hub
-app.post('/api/sanitation/report', (req, res) => {
+app.post('/api/sanitation/report', async (req, res) => {
   const { issueType, location, latitude, longitude, photoBase64, reportedBy, status } = req.body || {};
   const ticketId = 'SAN-' + Date.now();
-  const ticket = {
-    id: ticketId,
-    issueType: issueType || 'Unknown',
-    location: location || '',
-    latitude,
-    longitude,
-    photoBase64: photoBase64 || null,
-    reportedBy: reportedBy || 'Nirmal Wari Sanitation Hub',
-    status: status || 'DISPATCHED_TO_PANCHAYAT',
-    receivedAt: new Date().toISOString()
-  };
-  sanitationStore.set(ticketId, ticket);
+  await pool.query(
+    `INSERT INTO sanitation (id, issue_type, location, latitude, longitude, photo_base64, reported_by, status, received_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+    [ticketId, issueType || 'Unknown', location || '', latitude, longitude, photoBase64 || null, reportedBy || 'Nirmal Wari Sanitation Hub', status || 'DISPATCHED_TO_PANCHAYAT']
+  );
+  const ticket = { id: ticketId, issueType: issueType || 'Unknown', location: location || '', latitude, longitude, photoBase64: photoBase64 || null, reportedBy: reportedBy || 'Nirmal Wari Sanitation Hub', status: status || 'DISPATCHED_TO_PANCHAYAT', receivedAt: new Date().toISOString() };
   console.log('Sanitation alert:', ticket);
   res.status(201).json({ status: 'ok', ticketId, message: 'Sanitation alert sent to backend', ticket });
 });
 
-app.get('/api/sanitation/all', (req, res) => {
-  const tickets = Array.from(sanitationStore.values()).reverse();
-  res.status(200).json({ status: 'ok', count: tickets.length, data: tickets });
+app.get('/api/sanitation/all', async (req, res) => {
+  const result = await pool.query('SELECT * FROM sanitation ORDER BY received_at DESC');
+  res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
 });
 
-app.post('/api/lost-child/report', (req, res) => {
+app.post('/api/lost-child/report', async (req, res) => {
   const { childName, age, gender, lastSeenLocation, lastSeenLatitude, lastSeenLongitude, description, contactNumber, photoBase64, reportedBy, reportedByRole } = req.body || {};
   if (!childName && !description) {
     return res.status(400).json({ status: 'error', message: 'childName or description required' });
   }
   const alertId = 'LCH-' + Date.now();
+  await pool.query(
+    `INSERT INTO lost_child (id, child_name, age, gender, last_seen_location, last_seen_latitude, last_seen_longitude, description, contact_number, photo_base64, reported_by, reported_by_role, status, received_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())`,
+    [alertId, childName || 'Unknown', age || null, gender || 'Unknown', lastSeenLocation || '', lastSeenLatitude, lastSeenLongitude, description || '', contactNumber || '', photoBase64 || null, reportedBy || 'Anonymous', reportedByRole || 'varkari', 'ACTIVE']
+  );
   const alert = {
     id: alertId,
     childName: childName || 'Unknown',
@@ -366,335 +361,122 @@ app.post('/api/lost-child/report', (req, res) => {
     status: 'ACTIVE',
     receivedAt: new Date().toISOString()
   };
-  lostChildStore.set(alertId, alert);
   console.log('Lost child alert:', alert);
   res.status(201).json({ status: 'ok', alertId, message: 'Lost child alert broadcast to all varkaris', alert });
 });
 
-app.get('/api/lost-child/active', (req, res) => {
-  const alerts = Array.from(lostChildStore.values()).filter(a => a.status === 'ACTIVE').reverse();
-  res.status(200).json({ status: 'ok', count: alerts.length, data: alerts });
+app.get('/api/lost-child/active', async (req, res) => {
+  const result = await pool.query("SELECT * FROM lost_child WHERE status = 'ACTIVE' ORDER BY received_at DESC");
+  res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
 });
 
-app.put('/api/lost-child/:alertId/resolve', (req, res) => {
-  const alert = lostChildStore.get(req.params.alertId);
-  if (!alert) {
+app.put('/api/lost-child/:alertId/resolve', async (req, res) => {
+  const result = await pool.query('UPDATE lost_child SET status = $1, resolved_at = NOW() WHERE id = $2 RETURNING *', ['RESOLVED', req.params.alertId]);
+  if (result.rows.length === 0) {
     return res.status(404).json({ status: 'error', message: 'Alert not found' });
   }
-  alert.status = 'RESOLVED';
-  alert.resolvedAt = new Date().toISOString();
-  res.status(200).json({ status: 'ok', message: 'Alert marked as resolved', alert });
+  res.status(200).json({ status: 'ok', message: 'Alert marked as resolved', alert: result.rows[0] });
 });
 
-app.get('/api/admin/users', (req, res) => {
-  const users = Array.from(usersStore.values()).reverse();
-  res.status(200).json({ status: 'ok', count: users.length, data: users });
+app.get('/api/admin/users', async (req, res) => {
+  const result = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+  res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
 });
 
-app.get('/api/admin/devices', (req, res) => {
-  const devices = Array.from(devicesStore.values()).reverse();
-  res.status(200).json({ status: 'ok', count: devices.length, data: devices });
+app.get('/api/admin/devices', async (req, res) => {
+  const result = await pool.query('SELECT * FROM devices ORDER BY last_seen DESC');
+  res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
 });
 
-app.post('/api/traffic/update-vari-location', (req, res) => {
+app.post('/api/traffic/update-vari-location', async (req, res) => {
   const { latitude, longitude, role } = req.body || {};
-  const entry = {
-    latitude,
-    longitude,
-    role,
-    updatedAt: new Date().toISOString()
-  };
-  trafficStore.set('latest', entry);
+  await pool.query(
+    `INSERT INTO traffic (key, location, role, updated_at)
+     VALUES ('latest', ST_SetSRID(ST_MakePoint($1, $2), 4326), $3, NOW())
+     ON CONFLICT (key) DO UPDATE SET location = EXCLUDED.location, role = EXCLUDED.role, updated_at = NOW()`,
+    [longitude, latitude, role]
+  );
+  const entry = { latitude, longitude, role, updatedAt: new Date().toISOString() };
   console.log('Traffic update:', entry);
   res.status(200).json({ status: 'ok', received: entry });
 });
 
-app.get('/api/traffic/active-diversions', (req, res) => {
-  const latest = trafficStore.get('latest');
+app.get('/api/traffic/active-diversions', async (req, res) => {
+  const result = await pool.query("SELECT * FROM traffic WHERE key = 'latest'");
   res.status(200).json({
     status: 'ok',
-    active: latest ? [latest] : []
+    active: result.rows.length > 0 ? [result.rows[0]] : []
   });
 });
 
-app.post('/api/emergency/report', (req, res) => {
+app.post('/api/emergency/report', async (req, res) => {
   const payload = {
     ...req.body,
     receivedAt: new Date().toISOString(),
     id: `EMR-${Date.now()}`
   };
-  emergencyStore.set(payload.id, payload);
+  await pool.query('INSERT INTO emergency (id, data, received_at) VALUES ($1, $2, NOW())', [payload.id, payload]);
   console.log('Emergency report:', payload);
   res.status(200).json({ status: 'ok', id: payload.id });
 });
 
-app.post('/api/emergency/broadcast-position', (req, res) => {
+app.post('/api/emergency/broadcast-position', async (req, res) => {
   const payload = {
     ...req.body,
     receivedAt: new Date().toISOString(),
     id: `BC-${Date.now()}`
   };
-  broadcastStore.set(payload.id, payload);
+  await pool.query(
+    `INSERT INTO broadcast (id, data, latitude, longitude, location, received_at)
+     VALUES ($1, $2, $3, $4, ST_SetSRID(ST_MakePoint($4, $3), 4326), NOW())`,
+    [payload.id, payload, payload.latitude, payload.longitude]
+  );
   console.log('Authority broadcast:', payload);
   res.status(200).json({ status: 'ok', id: payload.id, delivered: true });
 });
 
-app.get('/api/admin/emergency-reports', (req, res) => {
-  const reports = Array.from(emergencyStore.values()).reverse();
-  res.status(200).json({ status: 'ok', count: reports.length, data: reports });
+app.get('/api/admin/emergency-reports', async (req, res) => {
+  const result = await pool.query('SELECT * FROM emergency ORDER BY received_at DESC');
+  res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
 });
 
-app.get('/api/admin/broadcasts', (req, res) => {
-  const broadcasts = Array.from(broadcastStore.values()).reverse();
-  res.status(200).json({ status: 'ok', count: broadcasts.length, data: broadcasts });
+app.get('/api/admin/broadcasts', async (req, res) => {
+  const result = await pool.query('SELECT * FROM broadcast ORDER BY received_at DESC');
+  res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
 });
 
-app.get('/api/admin/traffic', (req, res) => {
-  const traffic = Array.from(trafficStore.values()).reverse();
-  res.status(200).json({ status: 'ok', count: traffic.length, data: traffic });
+app.get('/api/admin/traffic', async (req, res) => {
+  const result = await pool.query('SELECT * FROM traffic ORDER BY updated_at DESC');
+  res.status(200).json({ status: 'ok', count: result.rows.length, data: result.rows });
 });
 
-app.get('/api/admin/all', (req, res) => {
+app.get('/api/admin/all', async (req, res) => {
+  const [traffic, emergencyReports, broadcasts, users, devices, family, sevas, sanitation, lostChild] = await Promise.all([
+    pool.query('SELECT * FROM traffic ORDER BY updated_at DESC'),
+    pool.query('SELECT * FROM emergency ORDER BY received_at DESC'),
+    pool.query('SELECT * FROM broadcast ORDER BY received_at DESC'),
+    pool.query('SELECT * FROM users ORDER BY created_at DESC'),
+    pool.query('SELECT * FROM devices ORDER BY last_seen DESC'),
+    pool.query('SELECT * FROM family ORDER BY added_at DESC'),
+    pool.query('SELECT * FROM sevas ORDER BY created_at DESC'),
+    pool.query('SELECT * FROM sanitation ORDER BY received_at DESC'),
+    pool.query("SELECT * FROM lost_child ORDER BY received_at DESC"),
+  ]);
   res.status(200).json({
     status: 'ok',
-    traffic: Array.from(trafficStore.values()).reverse(),
-    emergencyReports: Array.from(emergencyStore.values()).reverse(),
-    broadcasts: Array.from(broadcastStore.values()).reverse(),
-    users: Array.from(usersStore.values()).reverse(),
-    devices: Array.from(devicesStore.values()).reverse(),
-    family: Array.from(familyStore.values()).reverse(),
-    sevas: Array.from(sevasStore.values()).reverse(),
-    sanitation: Array.from(sanitationStore.values()).reverse(),
-    lostChild: Array.from(lostChildStore.values()).reverse()
+    traffic: traffic.rows,
+    emergencyReports: emergencyReports.rows,
+    broadcasts: broadcasts.rows,
+    users: users.rows,
+    devices: devices.rows,
+    family: family.rows,
+    sevas: sevas.rows,
+    sanitation: sanitation.rows,
+    lostChild: lostChild.rows
   });
 });
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Varithon backend running on http://localhost:${PORT}`);
-});
-
-// ──────────────────────────────────────────────────────────────────
-// Palkhi / Wari Schedule Data & API
-// ──────────────────────────────────────────────────────────────────
-
-const ASHADHI_EKADASHI_DATES = {
-  2020: "2020-07-01",
-  2021: "2021-07-20",
-  2022: "2022-07-10",
-  2023: "2023-06-29",
-  2024: "2024-07-17",
-  2025: "2025-07-06",
-  2026: "2026-06-25",
-  2027: "2027-07-14",
-  2028: "2028-07-03",
-  2029: "2029-07-21",
-  2030: "2030-07-10",
-};
-
-const PALKHI_CONFIG = {
-  dnyaneshwar: {
-    name: "Sant Dnyaneshwar Maharaj Palkhi",
-    startPoint: "Alandi",
-    daysBeforeEkadashi: 18,
-    color: "#EA4335",
-    halts: [
-      { day: 1, name: "Alandi", lat: 18.6756, lng: 73.8967 },
-      { day: 2, name: "Pune (Bhavani Peth)", lat: 18.5074, lng: 73.8677 },
-      { day: 3, name: "Pune (Bhavani Peth)", lat: 18.5074, lng: 73.8677 },
-      { day: 4, name: "Saswad", lat: 18.3439, lng: 74.0305 },
-      { day: 5, name: "Saswad", lat: 18.3439, lng: 74.0305 },
-      { day: 6, name: "Jejuri", lat: 18.2755, lng: 74.1601 },
-      { day: 7, name: "Valhe", lat: 18.1748, lng: 74.1565 },
-      { day: 8, name: "Lonand", lat: 17.9546, lng: 74.1866 },
-      { day: 9, name: "Lonand", lat: 17.9546, lng: 74.1866 },
-      { day: 10, name: "Taradgaon", lat: 17.9625, lng: 74.2756 },
-      { day: 11, name: "Phaltan", lat: 17.9866, lng: 74.4338 },
-      { day: 12, name: "Barad", lat: 17.9157, lng: 74.6147 },
-      { day: 13, name: "Natepute", lat: 17.9042, lng: 74.7708 },
-      { day: 14, name: "Malshiras", lat: 17.8427, lng: 74.9208 },
-      { day: 15, name: "Velapur", lat: 17.7562, lng: 75.0506 },
-      { day: 16, name: "Bhandishegaon", lat: 17.7126, lng: 75.1843 },
-      { day: 17, name: "Wakhari", lat: 17.6974, lng: 75.2759 },
-      { day: 18, name: "Pandharpur", lat: 17.6775, lng: 75.3278 },
-    ],
-  },
-  tukaram: {
-    name: "Sant Tukaram Maharaj Palkhi",
-    startPoint: "Dehu",
-    daysBeforeEkadashi: 19,
-    color: "#FBBC05",
-    halts: [
-      { day: 1, name: "Dehu", lat: 18.7188, lng: 73.7699 },
-      { day: 2, name: "Akurdi", lat: 18.6496, lng: 73.7707 },
-      { day: 3, name: "Pune (Nana Peth)", lat: 18.5158, lng: 73.8638 },
-      { day: 4, name: "Pune (Nana Peth)", lat: 18.5158, lng: 73.8638 },
-      { day: 5, name: "Loni Kalbhor", lat: 18.4892, lng: 74.0208 },
-      { day: 6, name: "Yavat", lat: 18.4682, lng: 74.2882 },
-      { day: 7, name: "Varvand", lat: 18.3976, lng: 74.4079 },
-      { day: 8, name: "Undwadi Gavalyachi", lat: 18.2892, lng: 74.5012 },
-      { day: 9, name: "Baramati", lat: 18.1517, lng: 74.5772 },
-      { day: 10, name: "Sansar", lat: 18.0694, lng: 74.7567 },
-      { day: 11, name: "Anthurne", lat: 18.0435, lng: 74.8845 },
-      { day: 12, name: "Nimgaon Ketki", lat: 18.0573, lng: 74.9654 },
-      { day: 13, name: "Indapur", lat: 18.1158, lng: 75.0345 },
-      { day: 14, name: "Sarati", lat: 17.9942, lng: 75.0682 },
-      { day: 15, name: "Akluj", lat: 17.8864, lng: 75.0217 },
-      { day: 16, name: "Borgaon", lat: 17.7845, lng: 75.1412 },
-      { day: 17, name: "Pirachi Kuroli", lat: 17.7289, lng: 75.2215 },
-      { day: 18, name: "Wakhari", lat: 17.6974, lng: 75.2759 },
-      { day: 19, name: "Pandharpur", lat: 17.6775, lng: 75.3278 },
-    ],
-  },
-  muktabai: {
-    name: "Sant Muktabai Palkhi",
-    startPoint: "Muktainagar (Kothali)",
-    daysBeforeEkadashi: 33,
-    color: "#34A853",
-    halts: [
-      { day: 1, name: "Muktainagar (Kothali)", lat: 21.0536, lng: 76.0463 },
-      { day: 2, name: "Bhusawal", lat: 21.0455, lng: 75.8011 },
-      { day: 4, name: "Jalgaon", lat: 21.0077, lng: 75.5626 },
-      { day: 7, name: "Pachora", lat: 20.6698, lng: 75.3524 },
-      { day: 10, name: "Chalisgaon", lat: 20.4619, lng: 74.9984 },
-      { day: 13, name: "Nandgaon", lat: 20.3106, lng: 74.6586 },
-      { day: 15, name: "Yeola", lat: 20.0384, lng: 74.4883 },
-      { day: 17, name: "Kopargaon", lat: 19.8872, lng: 74.4756 },
-      { day: 20, name: "Rahuri", lat: 19.3900, lng: 74.6517 },
-      { day: 22, name: "Ahmednagar", lat: 19.0952, lng: 74.7496 },
-      { day: 26, name: "Karmala", lat: 18.4060, lng: 75.2014 },
-      { day: 29, name: "Kurduwadi", lat: 18.0833, lng: 75.4313 },
-      { day: 31, name: "Bhandishegaon", lat: 17.7126, lng: 75.1843 },
-      { day: 32, name: "Wakhari", lat: 17.6974, lng: 75.2759 },
-      { day: 33, name: "Pandharpur", lat: 17.6775, lng: 75.3278 },
-    ],
-  },
-  rukhmini: {
-    name: "Rukhmini Devi Palkhi",
-    startPoint: "Kaundanyapur",
-    daysBeforeEkadashi: 30,
-    color: "#4285F4",
-    halts: [
-      { day: 1, name: "Kaundanyapur", lat: 20.9150, lng: 78.1065 },
-      { day: 2, name: "Kurha", lat: 20.8403, lng: 78.0264 },
-      { day: 4, name: "Pulgaon", lat: 20.7302, lng: 78.3243 },
-      { day: 6, name: "Wardha", lat: 20.7453, lng: 78.6022 },
-      { day: 10, name: "Yavatmal", lat: 20.3888, lng: 78.1204 },
-      { day: 14, name: "Umarkhed", lat: 19.5960, lng: 77.6974 },
-      { day: 17, name: "Hingoli", lat: 19.7155, lng: 77.1471 },
-      { day: 20, name: "Parbhani", lat: 19.2644, lng: 76.7725 },
-      { day: 23, name: "Majalgaon", lat: 19.1554, lng: 76.2230 },
-      { day: 25, name: "Beed", lat: 18.9901, lng: 75.7531 },
-      { day: 27, name: "Kalamb", lat: 18.0436, lng: 75.9220 },
-      { day: 28, name: "Kurduwadi", lat: 18.0833, lng: 75.4313 },
-      { day: 29, name: "Wakhari", lat: 17.6974, lng: 75.2759 },
-      { day: 30, name: "Pandharpur", lat: 17.6775, lng: 75.3278 },
-    ],
-  },
-  gajanan: {
-    name: "Sant Gajanan Maharaj Palkhi",
-    startPoint: "Shegaon",
-    daysBeforeEkadashi: 33,
-    color: "#0F9D58",
-    halts: [
-      { day: 1, name: "Shegaon", lat: 20.7937, lng: 76.6946 },
-      { day: 4, name: "Akola", lat: 20.7059, lng: 77.0019 },
-      { day: 10, name: "Risod", lat: 19.9749, lng: 76.7766 },
-      { day: 15, name: "Parbhani", lat: 19.2644, lng: 76.7725 },
-      { day: 19, name: "Parali Vaijaynath", lat: 18.8475, lng: 76.3197 },
-      { day: 26, name: "Tuljapur", lat: 18.0131, lng: 76.0747 },
-      { day: 29, name: "Solapur", lat: 17.6599, lng: 75.9064 },
-      { day: 33, name: "Pandharpur", lat: 17.6775, lng: 75.3278 },
-    ],
-  },
-  nivrutti: {
-    name: "Sant Nivruttinath Maharaj Palkhi",
-    startPoint: "Trimbakeshwar",
-    daysBeforeEkadashi: 27,
-    color: "#FF6F00",
-    halts: [
-      { day: 1, name: "Trimbakeshwar", lat: 19.9328, lng: 73.5312 },
-      { day: 3, name: "Nashik (Panchavati)", lat: 20.0110, lng: 73.7902 },
-      { day: 8, name: "Sinnar", lat: 19.8459, lng: 74.0013 },
-      { day: 12, name: "Sangamner", lat: 19.5761, lng: 74.2057 },
-      { day: 15, name: "Ahmednagar", lat: 19.0952, lng: 74.7496 },
-      { day: 24, name: "Karmala", lat: 18.4060, lng: 75.2014 },
-      { day: 26, name: "Wakhari", lat: 17.6974, lng: 75.2759 },
-      { day: 27, name: "Pandharpur", lat: 17.6775, lng: 75.3278 },
-    ],
-  },
-  sopan: {
-    name: "Sant Sopankaka Palkhi",
-    startPoint: "Saswad",
-    daysBeforeEkadashi: 18,
-    color: "#A142F4",
-    halts: [
-      { day: 1, name: "Saswad", lat: 18.3439, lng: 74.0305 },
-      { day: 3, name: "Nira", lat: 18.1130, lng: 74.2155 },
-      { day: 7, name: "Baramati", lat: 18.1517, lng: 74.5772 },
-      { day: 10, name: "Akluj", lat: 17.8864, lng: 75.0217 },
-      { day: 13, name: "Velapur", lat: 17.7562, lng: 75.0506 },
-      { day: 17, name: "Wakhari", lat: 17.6974, lng: 75.2759 },
-      { day: 18, name: "Pandharpur", lat: 17.6775, lng: 75.3278 },
-    ],
-  },
-};
-
-function getPalkhiScheduleForYear(palkhiKey, year) {
-  const ekadashiStr = ASHADHI_EKADASHI_DATES[year];
-  if (!ekadashiStr) {
-    throw new Error(`Ashadhi Ekadashi date not configured for year ${year}`);
-  }
-
-  const palkhi = PALKHI_CONFIG[palkhiKey];
-  if (!palkhi) {
-    throw new Error(`Invalid Palkhi key: ${palkhiKey}`);
-  }
-
-  const ekadashiDate = new Date(ekadashiStr);
-  const day1Date = new Date(ekadashiDate);
-  day1Date.setDate(day1Date.getDate() - (palkhi.daysBeforeEkadashi - 1));
-
-  const schedule = palkhi.halts.map((halt) => {
-    const haltDate = new Date(day1Date);
-    haltDate.setDate(haltDate.getDate() + (halt.day - 1));
-    return {
-      dayNumber: halt.day,
-      locationName: halt.name,
-      lat: halt.lat,
-      lng: halt.lng,
-      date: haltDate.toISOString().split("T")[0],
-    };
-  });
-
-  return {
-    year,
-    palkhiName: palkhi.name,
-    ashadhiEkadashiDate: ekadashiStr,
-    day1Date: day1Date.toISOString().split("T")[0],
-    schedule,
-  };
-}
-
-app.get('/api/palkhi/list', (req, res) => {
-  const list = Object.entries(PALKHI_CONFIG).map(([key, cfg]) => ({
-    key,
-    name: cfg.name,
-    startPoint: cfg.startPoint,
-    daysBeforeEkadashi: cfg.daysBeforeEkadashi,
-    color: cfg.color,
-    haltCount: cfg.halts.length,
-  }));
-  res.status(200).json({ status: 'ok', data: list });
-});
-
-app.get('/api/palkhi/:name', (req, res) => {
-  try {
-    const year = parseInt(req.query.year) || new Date().getFullYear();
-    const palkhiKey = req.params.name.toLowerCase();
-    const data = getPalkhiScheduleForYear(palkhiKey, year);
-    res.status(200).json({ status: 'ok', data });
-  } catch (error) {
-    res.status(400).json({ status: 'error', message: error.message });
-  }
 });
