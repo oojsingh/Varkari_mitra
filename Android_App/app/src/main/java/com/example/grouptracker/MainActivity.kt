@@ -13,10 +13,12 @@ import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import android.webkit.*
@@ -29,6 +31,12 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.location.*
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -37,15 +45,22 @@ import com.google.firebase.firestore.SetOptions
 import android.content.SharedPreferences
 import android.util.Base64
 import org.json.JSONObject
+import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 import kotlin.concurrent.thread
 
 private const val REQUEST_PERMISSIONS_CODE = 1001
 private const val TRACKING_DOC = "anchors"
 private const val TRACKING_COLLECTION = "group_tracking"
-private const val BACKEND_BASE_URL = "http://10.0.2.2:8080"
+// IMPORTANT: Update this to your tunnel URL (e.g., https://varithon-live.loca.lt) 
+// or your Laptop's IP (e.g., http://192.168.1.10:8080) for physical device testing.
+private const val BACKEND_BASE_URL = "https://varithon-live.loca.lt"
 private const val TAG = "VarithonApp"
 private const val SOS_CHANNEL_ID = "sos_alerts"
 private const val PREFS_NAME = "varithon_prefs"
@@ -70,8 +85,12 @@ class MainActivity : AppCompatActivity() {
     private var authToken: String? = null
     private var currentUserJson: String? = null
 
+    private lateinit var googleSignInClient: GoogleSignInClient
+    private lateinit var googleSignInLauncher: ActivityResultLauncher<Intent>
+
     // WebChromeClient file chooser callback
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
+    private var cameraImageUri: Uri? = null
     private lateinit var filePickerLauncher: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +114,7 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
 
         setupFilePicker()
+        setupGoogleSignIn()
         setupWebView()
         setupLocationTracking()
         requestAppPermissions()
@@ -173,6 +193,7 @@ class MainActivity : AppCompatActivity() {
                         val clip = data.clipData!!
                         Array(clip.itemCount) { i -> clip.getItemAt(i).uri }
                     }
+                    cameraImageUri != null -> arrayOf(cameraImageUri!!)
                     else -> null
                 }
                 fileUploadCallback?.onReceiveValue(results)
@@ -180,6 +201,74 @@ class MainActivity : AppCompatActivity() {
                 fileUploadCallback?.onReceiveValue(null)
             }
             fileUploadCallback = null
+            // Reset camera uri after result is handled
+            // Note: Don't reset if we might need it, but usually we don't
+        }
+    }
+
+    private fun setupGoogleSignIn() {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestProfile()
+            // .requestIdToken("YOUR_SERVER_CLIENT_ID") // Uncomment and add your Client ID if needed by backend
+            .build()
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
+
+        googleSignInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                try {
+                    val account = task.getResult(ApiException::class.java)
+                    handleGoogleSignInSuccess(account)
+                } catch (e: ApiException) {
+                    Log.e(TAG, "Google sign-in failed", e)
+                    Toast.makeText(this, "Google Sign-In failed: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun handleGoogleSignInSuccess(account: GoogleSignInAccount?) {
+        if (account == null) return
+        
+        val email = account.email ?: ""
+        val name = account.displayName ?: ""
+        val id = account.id ?: ""
+        val idToken = account.idToken ?: ""
+
+        thread {
+            try {
+                val json = JSONObject().apply {
+                    put("email", email)
+                    put("name", name)
+                    put("googleId", id)
+                    put("idToken", idToken)
+                }
+                val response = postJson("/api/auth/google", json)
+                val obj = JSONObject(response)
+                
+                if (obj.optString("status") == "ok") {
+                    val token = obj.optString("token")
+                    val userObj = obj.optJSONObject("user")
+                    val userJson = userObj?.toString() ?: "{}"
+                    
+                    runOnUiThread {
+                        saveAuthSession(token, userJson)
+                        webView.evaluateJavascript("window.showToast('Welcome, $name');", null)
+                        webView.evaluateJavascript("window.updateProfileUI();", null)
+                        webView.evaluateJavascript("window.closeModal('loginModal');", null)
+                    }
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(this, "Backend Auth Failed: ${obj.optString("message")}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Backend sync for Google Login failed", e)
+                runOnUiThread {
+                    Toast.makeText(this, "Failed to connect to backend", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -223,19 +312,60 @@ class MainActivity : AppCompatActivity() {
             ): Boolean {
                 fileUploadCallback?.onReceiveValue(null)
                 fileUploadCallback = filePathCallback
+                cameraImageUri = null
 
-                val intent = fileChooserParams?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                // Check if capture is enabled (capture="camera" or capture="environment" etc.)
+                val captureEnabled = fileChooserParams?.isCaptureEnabled ?: false
+
+                val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                if (cameraIntent.resolveActivity(packageManager) != null) {
+                    try {
+                        val photoFile = createImageFile()
+                        val photoURI = FileProvider.getUriForFile(
+                            this@MainActivity,
+                            "$packageName.fileprovider",
+                            photoFile
+                        )
+                        cameraImageUri = photoURI
+                        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
+                    } catch (ex: IOException) {
+                        Log.e(TAG, "Unable to create Image File", ex)
+                    }
+                }
+
+                val contentSelectionIntent = fileChooserParams?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "image/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
                 }
 
+                val chooserIntent = Intent(Intent.ACTION_CHOOSER).apply {
+                    putExtra(Intent.EXTRA_INTENT, contentSelectionIntent)
+                    putExtra(Intent.EXTRA_TITLE, "Image Chooser")
+                    if (cameraImageUri != null) {
+                        putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cameraIntent))
+                    }
+                }
+
                 try {
-                    filePickerLauncher.launch(intent)
+                    // If capture is enabled, we might want to launch camera directly
+                    // but usually, a chooser with camera as first option is better
+                    // for generic "file" inputs. For capture="camera", we can be more direct.
+                    if (captureEnabled && cameraImageUri != null) {
+                        filePickerLauncher.launch(cameraIntent)
+                    } else {
+                        filePickerLauncher.launch(chooserIntent)
+                    }
                 } catch (e: Exception) {
                     fileUploadCallback = null
                     return false
                 }
                 return true
+            }
+
+            private fun createImageFile(): File {
+                val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val storageDir: File? = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+                return File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir)
             }
         }
 
@@ -705,35 +835,23 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Lost child report Firestore write failed", e)
             }
 
+            try {
+                val payload = JSONObject().apply {
+                    put("childName", name)
+                    put("description", attire)
+                    put("lastSeenLocation", gps)
+                    put("reportedBy", "Android App")
+                    put("reportedByRole", "varkari")
+                }
+                postJson("/api/lost-child/report", payload)
+            } catch (e: Exception) {
+                Log.e(TAG, "Lost child backend report failed", e)
+            }
+
             runOnUiThread {
                 Toast.makeText(
                     this@MainActivity,
                     "Child Alert Broadcasted to Police & Mitras",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-
-        @JavascriptInterface
-        fun trackStolenDevice(imei: String) {
-            val trackReq = hashMapOf(
-                "imei" to imei,
-                "reportedAt" to System.currentTimeMillis(),
-                "status" to "MESH_LOOKUP_ACTIVE"
-            )
-
-            try {
-                db.collection("stolen_devices")
-                    .document(imei)
-                    .set(trackReq, SetOptions.merge())
-            } catch (e: Exception) {
-                Log.e(TAG, "Stolen device track Firestore write failed", e)
-            }
-
-            runOnUiThread {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Anti-theft mesh watch activated for #$imei",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -781,6 +899,23 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Grievance ticket Firestore write failed", e)
             }
 
+            val lat = lastKnownLocation?.latitude ?: 18.5020
+            val lng = lastKnownLocation?.longitude ?: 73.9260
+
+            try {
+                val backendPayload = JSONObject().apply {
+                    put("issueType", issueType)
+                    put("location", location)
+                    put("latitude", lat)
+                    put("longitude", lng)
+                    put("status", "DISPATCHED_TO_PANCHAYAT")
+                    put("reportedBy", "Nirmal Wari Sanitation Hub")
+                }
+                postJson("/api/sanitation/report", backendPayload)
+            } catch (e: Exception) {
+                Log.e(TAG, "Sanitation backend report failed", e)
+            }
+
             runOnUiThread {
                 try {
                     val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
@@ -826,48 +961,22 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun loginWithGoogle(): String {
-            return try {
-                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                val savedEmail = prefs.getString("google_email", null)
-                val savedName = prefs.getString("google_name", null)
-                val googleId = "gid_" + System.currentTimeMillis()
-
-                val json = JSONObject().apply {
-                    if (savedEmail != null) {
-                        put("email", savedEmail)
-                        put("name", savedName ?: savedEmail.split("@")[0])
-                        put("googleId", googleId)
-                    } else {
-                        put("email", "google_user_${System.currentTimeMillis()}@gmail.com")
-                        put("name", "Google User")
-                        put("googleId", googleId)
-                    }
+            runOnUiThread {
+                googleSignInClient.signOut().addOnCompleteListener {
+                    val signInIntent = googleSignInClient.signInIntent
+                    googleSignInLauncher.launch(signInIntent)
                 }
-                val response = postJson("/api/auth/google", json)
-                val obj = JSONObject(response)
-                if (obj.optString("status") == "ok") {
-                    val token = obj.optString("token")
-                    val userObj = obj.optJSONObject("user")
-                    val userJson = userObj?.toString() ?: "{}"
-                    runOnUiThread {
-                        saveAuthSession(token, userJson)
-                    }
-                    obj.toString()
-                } else {
-                    obj.toString()
-                }
-            } catch (e: Exception) {
-                JSONObject().apply {
-                    put("status", "error")
-                    put("message", e.message ?: "Google login failed")
-                }.toString()
             }
+            return JSONObject().apply {
+                put("status", "pending")
+            }.toString()
         }
 
         @JavascriptInterface
         fun logoutUser() {
             runOnUiThread {
                 clearAuthSession()
+                googleSignInClient.signOut()
             }
         }
 

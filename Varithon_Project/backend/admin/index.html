@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Varkari Mitra — Control Room</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◉</span>
+      <div>
+        <h1>VARKARI MITRA</h1>
+        <p class="subtitle">Command &amp; Control Center</p>
+      </div>
+    </div>
+    <div class="status-cluster">
+      <div class="status-pill" id="systemStatus">
+        <span class="dot"></span>
+        <span class="label">SYSTEM ONLINE</span>
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- Metrics Row -->
+    <section class="card metric-card">
+      <div class="metric">
+        <span class="metric-value" id="metricUsers">0</span>
+        <span class="metric-label">USERS</span>
+      </div>
+      <div class="metric">
+        <span class="metric-value" id="metricDevices">0</span>
+        <span class="metric-label">DEVICES</span>
+      </div>
+      <div class="metric">
+        <span class="metric-value accent" id="metricEmergencies">0</span>
+        <span class="metric-label">EMERGENCIES</span>
+      </div>
+      <div class="metric">
+        <span class="metric-value" id="metricTraffic">0</span>
+        <span class="metric-label">TRAFFIC UPDATES</span>
+      </div>
+    </section>
+
+    <!-- Map Panel -->
+    <section class="card map-card">
+      <div class="card-header">
+        <h2>LIVE TRACKING</h2>
+        <span class="badge" id="mapCount">0 ACTIVE</span>
+      </div>
+      <div class="map-container">
+        <canvas id="mapCanvas"></canvas>
+        <div class="map-legend">
+          <span class="legend-item"><span class="swatch varkari"></span>Varkari</span>
+          <span class="legend-item"><span class="swatch authority"></span>Authority</span>
+          <span class="legend-item"><span class="swatch emergency"></span>Emergency</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Emergency Feed -->
+    <section class="card feed-card">
+      <div class="card-header">
+        <h2>EMERGENCY FEED</h2>
+        <span class="badge alert" id="emergencyBadge">0 ALERTS</span>
+      </div>
+      <div class="feed" id="emergencyFeed">
+        <div class="empty">No active emergencies</div>
+      </div>
+    </section>
+
+    <!-- Broadcast Feed -->
+    <section class="card feed-card">
+      <div class="card-header">
+        <h2>AUTHORITY BROADCASTS</h2>
+        <span class="badge" id="broadcastBadge">0 BROADCASTS</span>
+      </div>
+      <div class="feed" id="broadcastFeed">
+        <div class="empty">No broadcasts</div>
+      </div>
+    </section>
+
+    <!-- Traffic Diversions -->
+    <section class="card traffic-card">
+      <div class="card-header">
+        <h2>TRAFFIC DIVERSIONs</h2>
+        <span class="badge" id="trafficBadge">0 ACTIVE</span>
+      </div>
+      <div class="feed" id="trafficFeed">
+        <div class="empty">No traffic updates</div>
+      </div>
+    </section>
+
+    <!-- Sanitation Feed -->
+    <section class="card feed-card">
+      <div class="card-header">
+        <h2>NIRMAL WARI SANITATION HUB</h2>
+        <span class="badge alert" id="sanitationBadge">0 ALERTS</span>
+      </div>
+      <div class="feed" id="sanitationFeed">
+        <div class="empty">No sanitation alerts</div>
+      </div>
+    </section>
+
+    <!-- Lost Child Feed -->
+    <section class="card feed-card">
+      <div class="card-header">
+        <h2>🚨 LOST CHILD ALERTS</h2>
+        <span class="badge alert" id="lostChildBadge">0 ACTIVE</span>
+      </div>
+      <div class="feed" id="lostChildFeed">
+        <div class="empty">No lost child alerts</div>
+      </div>
+    </section>
+
+    <!-- Device Registry -->
+    <section class="card table-card">
+      <div class="card-header">
+        <h2>DEVICE REGISTRY</h2>
+        <span class="badge" id="deviceBadge">0 DEVICES</span>
+      </div>
+      <div class="table-wrap">
+        <table id="deviceTable">
+          <thead>
+            <tr>
+              <th>IMEI</th>
+              <th>USER</th>
+              <th>NAME</th>
+              <th>PHONE</th>
+              <th>LAST SEEN</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- User Registry -->
+    <section class="card table-card">
+      <div class="card-header">
+        <h2>USER REGISTRY</h2>
+        <span class="badge" id="userBadge">0 USERS</span>
+      </div>
+      <div class="table-wrap">
+        <table id="userTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>NAME</th>
+              <th>EMAIL</th>
+              <th>KYC</th>
+              <th>CREATED</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

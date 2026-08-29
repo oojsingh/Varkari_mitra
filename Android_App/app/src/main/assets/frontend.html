@@ -232,7 +232,7 @@
             
             <div class="flex items-center gap-2">
               <label class="flex-1 border-dashed border-2 border-stone-300 p-2.5 rounded-lg text-center cursor-pointer hover:border-rose-400 bg-stone-50 transition relative overflow-hidden">
-                <input type="file" accept="image/*" id="childPhotoInput" class="hidden" onchange="previewUpload(this, 'childPhotoLabel', 'childPhotoPreviewImg')" />
+                <input type="file" accept="image/*" capture="environment" id="childPhotoInput" class="hidden" onchange="previewUpload(this, 'childPhotoLabel', 'childPhotoPreviewImg')" />
                 <div id="childPhotoDefaultView" class="flex items-center justify-center gap-1 text-[11px] text-stone-600">
                   <i data-lucide="camera" class="w-4 h-4 text-rose-600"></i>
                   <span id="childPhotoLabel">Snap/Upload Photo</span>
@@ -259,59 +259,6 @@
           </div>
         </div>
 
-        <!-- Device Anti-Theft Protocol -->
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
-              <i data-lucide="smartphone" class="w-4 h-4 text-saffron-600"></i>
-              <span data-key="anti_theft_title">Community Anti-Theft Mesh Tracker</span>
-            </h3>
-            <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold" data-key="network_watch_badge">Network Watch</span>
-          </div>
-          <p class="text-xs text-stone-600 mb-2.5" data-key="anti_theft_desc">Lost your mobile in crowd? Raise a lookup alert from another registered Mitra's device.</p>
-          
-          <!-- Tracking Mode Toggle -->
-          <div class="flex gap-2 mb-2">
-            <button type="button" onclick="setTrackMode('own')" id="trackModeOwn" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition">My Devices</button>
-            <button type="button" onclick="setTrackMode('other')" id="trackModeOther" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition">Track Another Mitra</button>
-          </div>
-
-          <!-- Own Device Tracking -->
-          <div id="ownDeviceSection" class="space-y-2">
-            <div class="flex gap-2">
-              <input type="text" id="imeiInput" placeholder="Lost Device IMEI / Registered Phone #" class="flex-1 text-xs p-2.5 rounded-lg border border-stone-300 outline-none focus:ring-2 focus:ring-saffron-500" />
-              <button onclick="trackStolenDevice()" class="bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white text-xs px-3.5 py-2.5 rounded-lg font-bold transition shadow-sm whitespace-nowrap">
-                <span data-key="activate_track_btn">Activate Track</span>
-              </button>
-            </div>
-            <div id="stolenTrackResult" class="hidden mt-2.5 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-stone-800 space-y-1">
-              <div class="flex items-center justify-between font-bold text-amber-900">
-                <span id="trackResultTitle">📡 Tracking Signal Active</span>
-                <span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">Signal 88%</span>
-              </div>
-              <p class="text-[11px] text-stone-600" id="trackResultDesc">Device pinged near Hadapsar Gadital Sector. 4 nearby Mitras notified to look out.</p>
-            </div>
-          </div>
-
-          <!-- Cross-User Tracking -->
-          <div id="otherDeviceSection" class="hidden space-y-2">
-            <p class="text-[11px] text-stone-600">Enter another Varimitra's login email to track their registered lost device.</p>
-            <div class="flex gap-2">
-              <input type="email" id="targetEmailInput" placeholder="mitra@example.com" class="flex-1 text-xs p-2.5 rounded-lg border border-stone-300 outline-none focus:ring-2 focus:ring-saffron-500" />
-              <button onclick="trackOtherMitraDevice()" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs px-3.5 py-2.5 rounded-lg font-bold transition shadow-sm whitespace-nowrap">
-                Find Device
-              </button>
-            </div>
-            <div id="crossTrackResult" class="hidden mt-2.5 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-stone-800 space-y-1">
-              <div class="flex items-center justify-between font-bold text-emerald-900">
-                <span id="crossTrackTitle">📡 Cross-User Track Active</span>
-                <span id="crossTrackKycBadge" class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">KYC Verified</span>
-              </div>
-              <p class="text-[11px] text-stone-600" id="crossTrackDesc">Owner: <span id="crossTrackOwner">Rahyanath Maharaj</span> • Device: <span id="crossTrackDevice">Samsung S23</span></p>
-              <p class="text-[11px] text-stone-500" id="crossTrackLoc">Last seen: Alandi Gram Panchayat, Sec-3</p>
-            </div>
-          </div>
-        </div>
 
         <!-- Emergency Corridors & Nearby Hospitals -->
         <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
@@ -769,10 +716,6 @@
         police_push_badge: "Police Push",
         lost_child_desc: "Upload child photo and instant GPS tag to alert all nearby registered Mitras and local Police control room.",
         lost_child_submit: "Publish Alert to Police & Mitra Mesh",
-        anti_theft_title: "Community Anti-Theft Mesh Tracker",
-        network_watch_badge: "Network Watch",
-        anti_theft_desc: "Lost your mobile in crowd? Raise a lookup alert from another registered Mitra's device.",
-        activate_track_btn: "Activate Track",
         medical_posts_title: "Nearest Medical Posts & Ambulance Paths",
         seva_title: "सेवा नेटवर्क (Seva Network)",
         seva_subtitle: "Free Food (Annadaan), Water & Lodging verified by Mitras",
@@ -815,10 +758,6 @@
         police_push_badge: "पोलीस नियंत्रण",
         lost_child_desc: "मुलाचा फोटो आणि थेट GPS लोकेशन अपलोड करा; जवळच्या सर्व मित्रांना व पोलिसांना त्वरित अलर्ट पाठवला जाईल.",
         lost_child_submit: "पोलीस व मित्र नेटवर्कवर अलर्ट पाठवा",
-        anti_theft_title: "चोरीविरोधी नेटवर्क ट्रॅकर",
-        network_watch_badge: "नेटवर्क वॉच",
-        anti_theft_desc: "गर्दीत मोबाईल हरवला? इतर मित्रांच्या फोनवरून तात्काळ ट्रॅकिंग सुरू करा.",
-        activate_track_btn: "शोध सुरू करा",
         medical_posts_title: "जवळची वैद्यकीय पथके व रुग्णवाहिका मार्ग",
         seva_title: "सेवा नेटवर्क (अन्नदान व मुक्काम)",
         seva_subtitle: "वारकऱ्यांसाठी मोफत अन्नदान, पाणी व मुक्काम सोय",
@@ -1193,6 +1132,21 @@
         window.Android.reportLostChild(name, attire, gps);
       }
 
+      // Also send to backend for control room visibility
+      const payload = {
+        childName: name,
+        description: attire,
+        lastSeenLocation: gps,
+        reportedBy: currentUser ? currentUser.name : 'Anonymous',
+        reportedByRole: currentUser ? currentUser.role : 'varkari'
+      };
+
+      fetch('http://10.0.2.2:8080/api/lost-child/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error('Lost child backend report failed:', err));
+
       // Add to broadcast feed
       const feed = document.getElementById('missingChildrenFeed');
       const card = document.createElement('div');
@@ -1220,24 +1174,39 @@
       document.getElementById('childPhotoLabel').innerText = "Snap/Upload Photo";
     }
 
-    function trackStolenDevice() {
-      const imei = document.getElementById('imeiInput').value.trim();
-      if (!imei) {
-        showToast('Please enter IMEI or registered phone number.');
-        return;
-      }
+    // Poll for active lost child alerts from backend
+    setInterval(() => {
+      fetch('http://10.0.2.2:8080/api/lost-child/active')
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'ok' && data.data && data.data.length > 0) {
+            const feed = document.getElementById('missingChildrenFeed');
+            if (feed) {
+              feed.innerHTML = '';
+              data.data.forEach(alert => {
+                const card = document.createElement('div');
+                card.className = "p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs space-y-1.5 shadow-sm";
+                card.innerHTML = `
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">${alert.status || 'ACTIVE'}</span>
+                      <h5 class="font-bold text-stone-900 text-xs mt-1">👶 ${alert.childName || 'Unknown Child'} ${alert.age ? '(' + alert.age + ' yrs)' : ''}</h5>
+                      <p class="text-[11px] text-stone-600">${alert.description || alert.issueType || ''}</p>
+                    </div>
+                    <span class="text-[10px] text-rose-700 font-mono font-bold">${new Date(alert.receivedAt).toLocaleTimeString()}</span>
+                  </div>
+                  <p class="text-[10px] text-stone-500 font-mono">📍 ${alert.lastSeenLocation || 'Location unknown'}</p>
+                  <p class="text-[10px] text-stone-500">Contact: ${alert.contactNumber || 'N/A'} • Reported by: ${alert.reportedBy}</p>
+                `;
+                feed.prepend(card);
+              });
+            }
+          }
+        })
+        .catch(() => {});
+    }, 5000);
 
-      if (window.Android && window.Android.trackStolenDevice) {
-        window.Android.trackStolenDevice(imei);
-      }
-
-      const resultBox = document.getElementById('stolenTrackResult');
-      document.getElementById('trackResultTitle').innerText = `📡 Mesh Tracking: #${imei}`;
-      document.getElementById('trackResultDesc').innerText = `Device signal detected near Hadapsar Gadital Sector. 4 nearby Mitras alerted.`;
-      resultBox.classList.remove('hidden');
-      showToast(`Anti-theft protocol activated for #${imei}`);
-    }
-
+    
     // ──────────────────────────────────────────────────────────────────
     // Seva Network Handlers
     // ──────────────────────────────────────────────────────────────────
@@ -1527,57 +1496,8 @@
       }
     }
 
-    function setTrackMode(mode) {
-      trackMode = mode;
-      const ownBtn = document.getElementById('trackModeOwn');
-      const otherBtn = document.getElementById('trackModeOther');
-      const ownSec = document.getElementById('ownDeviceSection');
-      const otherSec = document.getElementById('otherDeviceSection');
-
-      if (mode === 'own') {
-        ownBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition';
-        otherBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition';
-        ownSec.classList.remove('hidden');
-        otherSec.classList.add('hidden');
-      } else {
-        otherBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition';
-        ownBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition';
-        otherSec.classList.remove('hidden');
-        ownSec.classList.add('hidden');
-      }
-    }
-
-    function trackOtherMitraDevice() {
-      const email = document.getElementById('targetEmailInput').value.trim();
-      if (!email) {
-        showToast('Please enter the other Mitra\'s email');
-        return;
-      }
-      if (window.Android && window.Android.trackOtherMitraDevice) {
-        const res = parseJsonSafe(window.Android.trackOtherMitraDevice(email));
-        if (res && res.device) {
-          const resultBox = document.getElementById('crossTrackResult');
-          document.getElementById('crossTrackOwner').innerText = res.owner.name || email;
-          document.getElementById('crossTrackDevice').innerText = res.device.name || res.device.imei;
-          document.getElementById('crossTrackLoc').innerText = 'Last seen: ' + new Date(res.device.lastSeen).toLocaleString();
-          const badge = document.getElementById('crossTrackKycBadge');
-          if (res.owner.kycStatus === 'VERIFIED') {
-            badge.innerText = 'KYC Verified';
-            badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded';
-          } else {
-            badge.innerText = 'KYC Pending';
-            badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded';
-          }
-          resultBox.classList.remove('hidden');
-          showToast('Tracking device of ' + (res.owner.name || email));
-        } else {
-          showToast(res && res.message ? res.message : 'Device not found');
-        }
-      } else {
-        showToast('Tracking bridge not available');
-      }
-    }
-
+    
+    
     // Auto-update time clock
     setInterval(() => {
       const now = new Date();
@@ -1589,3 +1509,6 @@
   </script>
 </body>
 </html>
+
+
+

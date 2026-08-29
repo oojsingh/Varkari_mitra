@@ -1,0 +1,35 @@
+# Android build artifacts
+Android_App/app/build/
+Android_App/.gradle/
+.gradle/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Node modules
+node_modules/
+Varithon_Project/backend/node_modules/
+Varithon_Project/frontend/node_modules/
+
+# Build outputs
+*.apk
+*.aab
+*.jar
+*.class
+*.dex
+*.flat
+*.arsc
+
+# Vite / frontend dist
+Varithon_Project/frontend/dist/
+Varithon_Project/frontend/.vite/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Kilo internal plans
+.kilo/
