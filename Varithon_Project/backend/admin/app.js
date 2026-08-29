@@ -1,4 +1,4 @@
-const API = 'https://varkari-mitra.onrender.com/api/admin/all';
+const API = '/api/admin/all';
 const POLL_INTERVAL = 3000;
 
 let mapCanvas, ctx;
