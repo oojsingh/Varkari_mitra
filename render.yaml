@@ -13,8 +13,9 @@ services:
       - key: CORS_ORIGIN
         value: https://varithon-frontend.onrender.com,null
 
-  - type: static_site
+  - type: web
     name: varithon-frontend
+    runtime: static
     serviceDirectory: Varithon_Project/frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
