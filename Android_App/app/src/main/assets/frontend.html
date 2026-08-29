@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>वारकरी मित्र | Varkari Mitra</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Leaflet CSS & JS for Real-time Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            saffron: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              200: '#fed7aa',
+              300: '#fdba74',
+              400: '#fb923c',
+              500: '#f97316',
+              600: '#ea580c',
+              700: '#c2410c',
+              800: '#9a3412',
+              900: '#7c2d12',
+            },
+            bhagwa: '#FF6F00',
+            maroon: '#800000'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      touch-action: manipulation;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .custom-scroll {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+      z-index: 10;
+    }
+    .glassmorphism {
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      padding: 4px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    .pulse-ring {
+      animation: pulse-animation 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+    }
+    @keyframes pulse-animation {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+  </style>
+</head>
+<body class="bg-stone-100 md:bg-stone-900 flex justify-center items-center min-h-screen">
+
+  <!-- Mobile Viewport Container -->
+  <div class="w-full max-w-md h-[100dvh] bg-stone-50 flex flex-col shadow-2xl relative overflow-hidden">
+    
+    <!-- Top Header -->
+    <header class="bg-gradient-to-r from-saffron-700 via-saffron-600 to-bhagwa text-white px-4 py-3 shadow-md flex items-center justify-between z-30 pt-3 flex-shrink-0">
+      <div class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center p-1 shadow-inner">
+          <span class="text-xl">🚩</span>
+        </div>
+        <div>
+          <h1 class="font-bold text-base tracking-wide flex items-center gap-1">
+            <span data-key="head_title">वारकरी मित्र</span> 
+            <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-normal">Track 2</span>
+          </h1>
+          <p class="text-[10px] text-saffron-100 uppercase tracking-wider" data-key="head_subtitle">Varkari Mitra System</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Mitra Registration KYC Badge -->
+        <button onclick="openModal('kycModal')" class="bg-white/20 hover:bg-white/30 active:scale-95 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 transition border border-white/30">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span id="mitraStatus" data-key="mitra_kyc_btn">Mitra KYC</span>
+        </button>
+        <!-- Profile / Login Button -->
+        <button onclick="openLoginOrProfile()" id="profileBtn" class="bg-white/20 hover:bg-white/30 active:scale-95 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 transition border border-white/30">
+          <i data-lucide="user" class="w-3.5 h-3.5"></i>
+          <span id="profileLabel" data-key="login_btn">Login</span>
+        </button>
+        <button onclick="toggleLang()" class="bg-amber-100 active:bg-amber-200 text-saffron-800 font-bold text-xs px-2.5 py-1 rounded border border-saffron-300 shadow-sm transition">
+          <span id="langLabel">मराठी</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Content Sections -->
+    <main class="flex-1 relative overflow-hidden">
+      
+      <!-- TAB 1: Real-time Live Palkhi & Traffic Map (Default View) -->
+      <section id="view-map" class="h-full w-full flex flex-col relative">
+        <!-- Filter Pills Floating on Map -->
+        <div class="absolute top-3 left-3 right-3 z-20 flex gap-2 overflow-x-auto custom-scroll py-1">
+          <button onclick="filterMap('all')" id="filter-all" class="bg-saffron-600 text-white text-xs px-3 py-1.5 rounded-full font-semibold shadow-md whitespace-nowrap active:scale-95 transition border border-saffron-600">
+            <span data-key="filter_all">🚩 All Live Points</span>
+          </button>
+          <button onclick="filterMap('palkhi')" id="filter-palkhi" class="glassmorphism text-stone-800 text-xs px-3 py-1.5 rounded-full font-medium shadow whitespace-nowrap border border-saffron-200 active:scale-95 transition">
+            <span data-key="filter_palkhi">🚶 Head &amp; Tail Pacing</span>
+          </button>
+          <button onclick="filterMap('ambulance')" id="filter-ambulance" class="glassmorphism text-stone-800 text-xs px-3 py-1.5 rounded-full font-medium shadow whitespace-nowrap border border-rose-200 active:scale-95 transition">
+            <span data-key="filter_ambulance">🚑 Green Corridors</span>
+          </button>
+          <button onclick="filterMap('seva')" id="filter-seva" class="glassmorphism text-stone-800 text-xs px-3 py-1.5 rounded-full font-medium shadow whitespace-nowrap border border-emerald-200 active:scale-95 transition">
+            <span data-key="filter_seva">🏠 Seva Rest Stops</span>
+          </button>
+        </div>
+
+        <!-- Dynamic Leaflet Map Element -->
+        <div id="map"></div>
+
+        <!-- Floating Quick Action Buttons on Map -->
+        <div class="absolute right-3 bottom-28 z-20 flex flex-col gap-2">
+          <!-- Recenter on Palkhi -->
+          <button onclick="recenterPalkhi()" title="Center on Palkhi" class="w-10 h-10 rounded-full glassmorphism text-saffron-700 flex items-center justify-center shadow-lg border border-saffron-300 active:scale-90 transition">
+            <i data-lucide="navigation" class="w-5 h-5"></i>
+          </button>
+          <!-- User GPS Locate Me -->
+          <button onclick="locateUserGPS()" title="My Location" class="w-10 h-10 rounded-full glassmorphism text-emerald-600 flex items-center justify-center shadow-lg border border-emerald-300 active:scale-90 transition">
+            <i data-lucide="crosshair" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Live Pacing Telemetry Box (RTO & Devotee view) -->
+        <div class="absolute bottom-3 left-3 right-3 z-20 glassmorphism p-3 rounded-xl border border-saffron-300 shadow-lg">
+          <div class="flex items-center justify-between text-xs mb-1.5">
+            <span class="font-bold text-saffron-900 flex items-center gap-1.5">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span data-key="rto_banner">Live Procession Boundary (RTO Active)</span>
+            </span>
+            <span class="text-[10px] text-stone-600 font-mono font-bold bg-saffron-100 px-1.5 py-0.5 rounded" id="timeStr">12:30 PM</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-center text-xs">
+            <div class="bg-saffron-50/90 p-2 rounded-lg border border-saffron-200 cursor-pointer hover:bg-saffron-100 transition" onclick="zoomToPoint('head')">
+              <p class="text-[10px] text-stone-500 font-bold" data-key="head_label">WARI HEAD (अग्रभागी)</p>
+              <p class="font-bold text-saffron-900 mt-0.5 truncate" id="wariHeadLoc">Hadapsar Gadital</p>
+              <p class="text-[9px] text-emerald-600 font-bold" id="wariHeadSpeed">Speed: 3.2 km/h</p>
+            </div>
+            <div class="bg-saffron-50/90 p-2 rounded-lg border border-saffron-200 cursor-pointer hover:bg-saffron-100 transition" onclick="zoomToPoint('tail')">
+              <p class="text-[10px] text-stone-500 font-bold" data-key="tail_label">WARI TAIL (शेवट)</p>
+              <p class="font-bold text-saffron-900 mt-0.5 truncate" id="wariTailLoc">Phursungi Bridge</p>
+              <p class="text-[9px] text-saffron-700 font-bold" id="wariSpan">Span: 6.8 km stretch</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Emergency, Anti-Theft & Child Safety Hub -->
+      <section id="view-safety" class="h-full w-full hidden overflow-y-auto custom-scroll p-4 pb-24 space-y-4 bg-gradient-to-b from-rose-50/50 to-stone-50">
+        
+        <!-- Active SOS Alert Banner (Visible when SOS is triggered) -->
+        <div id="activeSosBanner" class="hidden bg-red-600 text-white p-3.5 rounded-2xl shadow-xl space-y-2 animate-bounce border-2 border-white">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🚨</span>
+              <div>
+                <h3 class="font-black text-sm">EMERGENCY SOS ACTIVE</h3>
+                <p class="text-[10px] text-rose-100" id="sosTicketId">Dispatch Ref: SOS-84920</p>
+              </div>
+            </div>
+            <button onclick="cancelSOS()" class="text-xs bg-white text-red-700 font-bold px-2.5 py-1 rounded-lg shadow">
+              Cancel / Safe
+            </button>
+          </div>
+          <div class="flex gap-2 text-xs">
+            <button onclick="dialNumber('108')" class="flex-1 bg-white text-red-700 font-bold py-1.5 rounded-lg flex items-center justify-center gap-1">
+              <i data-lucide="phone-call" class="w-3.5 h-3.5"></i> Call 108 Ambulance
+            </button>
+            <button onclick="dialNumber('112')" class="flex-1 bg-red-900 text-white font-bold py-1.5 rounded-lg flex items-center justify-center gap-1">
+              <i data-lucide="shield" class="w-3.5 h-3.5"></i> Call 112 Police
+            </button>
+          </div>
+        </div>
+
+        <!-- Big Emergency SOS Button -->
+        <div class="bg-gradient-to-r from-red-600 to-rose-700 p-4 rounded-2xl text-white shadow-lg">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="font-black text-lg" data-key="safety_hub_title">Emergency &amp; Safety Hub</h2>
+              <p class="text-xs text-rose-100" data-key="safety_hub_subtitle">Direct integration with Police &amp; Medical RTO</p>
+            </div>
+            <i data-lucide="alert-triangle" class="w-8 h-8 text-rose-200"></i>
+          </div>
+          <button onclick="triggerSOS()" class="mt-3 w-full bg-white text-red-700 font-black py-3 rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2 text-sm uppercase tracking-wide hover:bg-rose-50">
+            <i data-lucide="phone-call" class="w-4 h-4 text-red-600 animate-bounce"></i>
+            <span data-key="broadcast_sos_btn">BROADCAST INSTANT MEDICAL / POLICE SOS</span>
+          </button>
+        </div>
+
+        <!-- Lost & Found Children (Police Dashboard Push) -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+              <i data-lucide="user-x" class="w-4 h-4 text-rose-600"></i>
+              <span data-key="lost_child_title">Lost / Missing Child Reporting</span>
+            </h3>
+            <span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-semibold" data-key="police_push_badge">Police Push</span>
+          </div>
+          <p class="text-xs text-stone-600 mb-3" data-key="lost_child_desc">Upload child photo and instant GPS tag to alert all nearby registered Mitras and local Police control room.</p>
+          
+          <form id="lostChildForm" onsubmit="handleChildReport(event)" class="space-y-2.5">
+            <input type="text" id="childNameInput" placeholder="Child Name / Estimated Age (e.g., Anandi, 7 yrs)" required class="w-full text-xs p-2.5 rounded-lg border border-stone-300 focus:ring-2 focus:ring-rose-500 outline-none" />
+            <input type="text" id="childAttireInput" placeholder="Distinguishing Attire (e.g. Yellow Kurta, White Gandhi Cap)" required class="w-full text-xs p-2.5 rounded-lg border border-stone-300 focus:ring-2 focus:ring-rose-500 outline-none" />
+            
+            <div class="flex items-center gap-2">
+              <label class="flex-1 border-dashed border-2 border-stone-300 p-2.5 rounded-lg text-center cursor-pointer hover:border-rose-400 bg-stone-50 transition relative overflow-hidden">
+                <input type="file" accept="image/*" id="childPhotoInput" class="hidden" onchange="previewUpload(this, 'childPhotoLabel', 'childPhotoPreviewImg')" />
+                <div id="childPhotoDefaultView" class="flex items-center justify-center gap-1 text-[11px] text-stone-600">
+                  <i data-lucide="camera" class="w-4 h-4 text-rose-600"></i>
+                  <span id="childPhotoLabel">Snap/Upload Photo</span>
+                </div>
+                <img id="childPhotoPreviewImg" class="hidden w-full h-24 object-cover rounded-md mt-1" />
+              </label>
+              
+              <button type="button" onclick="fetchGPSLocation('childGpsInput')" class="bg-stone-100 border border-stone-300 text-stone-700 text-xs px-3 py-2.5 rounded-lg flex items-center gap-1 active:bg-stone-200 font-semibold shadow-sm">
+                <i data-lucide="crosshair" class="w-4 h-4 text-saffron-600"></i> Tag GPS
+              </button>
+            </div>
+
+            <input type="text" id="childGpsInput" placeholder="GPS Tag: Click Tag GPS" readonly class="w-full text-[11px] p-2 rounded bg-stone-100 border border-stone-200 text-stone-700 font-mono" />
+            
+            <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-md flex items-center justify-center gap-1.5">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              <span data-key="lost_child_submit">Publish Alert to Police &amp; Mitra Mesh</span>
+            </button>
+          </form>
+
+          <!-- Dynamic Missing Children Broadcast Feed -->
+          <div id="missingChildrenFeed" class="mt-3 space-y-2">
+            <!-- Dynamically populated reports will appear here -->
+          </div>
+        </div>
+
+        <!-- Device Anti-Theft Protocol -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+              <i data-lucide="smartphone" class="w-4 h-4 text-saffron-600"></i>
+              <span data-key="anti_theft_title">Community Anti-Theft Mesh Tracker</span>
+            </h3>
+            <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold" data-key="network_watch_badge">Network Watch</span>
+          </div>
+          <p class="text-xs text-stone-600 mb-2.5" data-key="anti_theft_desc">Lost your mobile in crowd? Raise a lookup alert from another registered Mitra's device.</p>
+          
+          <!-- Tracking Mode Toggle -->
+          <div class="flex gap-2 mb-2">
+            <button type="button" onclick="setTrackMode('own')" id="trackModeOwn" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition">My Devices</button>
+            <button type="button" onclick="setTrackMode('other')" id="trackModeOther" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition">Track Another Mitra</button>
+          </div>
+
+          <!-- Own Device Tracking -->
+          <div id="ownDeviceSection" class="space-y-2">
+            <div class="flex gap-2">
+              <input type="text" id="imeiInput" placeholder="Lost Device IMEI / Registered Phone #" class="flex-1 text-xs p-2.5 rounded-lg border border-stone-300 outline-none focus:ring-2 focus:ring-saffron-500" />
+              <button onclick="trackStolenDevice()" class="bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white text-xs px-3.5 py-2.5 rounded-lg font-bold transition shadow-sm whitespace-nowrap">
+                <span data-key="activate_track_btn">Activate Track</span>
+              </button>
+            </div>
+            <div id="stolenTrackResult" class="hidden mt-2.5 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-stone-800 space-y-1">
+              <div class="flex items-center justify-between font-bold text-amber-900">
+                <span id="trackResultTitle">📡 Tracking Signal Active</span>
+                <span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">Signal 88%</span>
+              </div>
+              <p class="text-[11px] text-stone-600" id="trackResultDesc">Device pinged near Hadapsar Gadital Sector. 4 nearby Mitras notified to look out.</p>
+            </div>
+          </div>
+
+          <!-- Cross-User Tracking -->
+          <div id="otherDeviceSection" class="hidden space-y-2">
+            <p class="text-[11px] text-stone-600">Enter another Varimitra's login email to track their registered lost device.</p>
+            <div class="flex gap-2">
+              <input type="email" id="targetEmailInput" placeholder="mitra@example.com" class="flex-1 text-xs p-2.5 rounded-lg border border-stone-300 outline-none focus:ring-2 focus:ring-saffron-500" />
+              <button onclick="trackOtherMitraDevice()" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs px-3.5 py-2.5 rounded-lg font-bold transition shadow-sm whitespace-nowrap">
+                Find Device
+              </button>
+            </div>
+            <div id="crossTrackResult" class="hidden mt-2.5 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-stone-800 space-y-1">
+              <div class="flex items-center justify-between font-bold text-emerald-900">
+                <span id="crossTrackTitle">📡 Cross-User Track Active</span>
+                <span id="crossTrackKycBadge" class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">KYC Verified</span>
+              </div>
+              <p class="text-[11px] text-stone-600" id="crossTrackDesc">Owner: <span id="crossTrackOwner">Rahyanath Maharaj</span> • Device: <span id="crossTrackDevice">Samsung S23</span></p>
+              <p class="text-[11px] text-stone-500" id="crossTrackLoc">Last seen: Alandi Gram Panchayat, Sec-3</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Emergency Corridors & Nearby Hospitals -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
+          <h3 class="font-bold text-stone-900 text-sm mb-2 flex items-center gap-1.5">
+            <i data-lucide="cross" class="w-4 h-4 text-emerald-600"></i>
+            <span data-key="medical_posts_title">Nearest Medical Posts &amp; Ambulance Paths</span>
+          </h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between items-center p-2.5 rounded-lg bg-emerald-50 border border-emerald-100">
+              <div>
+                <p class="font-semibold text-emerald-900">Sassoon General Hospital Mobile Unit</p>
+                <p class="text-[10px] text-emerald-700">0.4 km away • Green Corridor Active</p>
+              </div>
+              <button onclick="dialNumber('108')" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm">
+                <i data-lucide="phone" class="w-3 h-3"></i> 108 Call
+              </button>
+            </div>
+            <div class="flex justify-between items-center p-2.5 rounded-lg bg-stone-50 border border-stone-200">
+              <div>
+                <p class="font-semibold text-stone-800">Red Cross Primary First Aid Camp #4</p>
+                <p class="text-[10px] text-stone-500">1.2 km away • Tent Sector B</p>
+              </div>
+              <div class="flex gap-1.5">
+                <button onclick="dialNumber('+919822199881')" class="bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 px-2 py-1.5 rounded-lg text-xs font-medium transition">
+                  <i data-lucide="phone" class="w-3 h-3"></i>
+                </button>
+                <button onclick="navToLocation(18.5089, 73.9260, 'Red Cross Primary First Aid Camp #4')" class="bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm">
+                  Route
+                </button>
+              </div>
+            </div>
+            <div class="flex justify-between items-center p-2.5 rounded-lg bg-stone-50 border border-stone-200">
+              <div>
+                <p class="font-semibold text-stone-800">Saswad Sub-District Hospital Emergency</p>
+                <p class="text-[10px] text-stone-500">4.5 km away • ICU &amp; Trauma Ready</p>
+              </div>
+              <div class="flex gap-1.5">
+                <button onclick="dialNumber('02115222233')" class="bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 px-2 py-1.5 rounded-lg text-xs font-medium transition">
+                  <i data-lucide="phone" class="w-3 h-3"></i>
+                </button>
+                <button onclick="navToLocation(18.3448, 74.0298, 'Saswad Sub-District Hospital')" class="bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-sm">
+                  Route
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: Seva Marketplace (Food, Water, Free Accommodation) -->
+      <section id="view-seva" class="h-full w-full hidden overflow-y-auto custom-scroll p-4 pb-24 space-y-4">
+        <div class="bg-gradient-to-r from-amber-600 to-saffron-500 p-4 rounded-2xl text-white shadow-lg flex justify-between items-center">
+          <div>
+            <h2 class="font-black text-lg" data-key="seva_title">सेवा नेटवर्क (Seva Network)</h2>
+            <p class="text-xs text-amber-100" data-key="seva_subtitle">Free Food (Annadaan), Water &amp; Lodging verified by Mitras</p>
+          </div>
+          <i data-lucide="heart-handshake" class="w-8 h-8 text-amber-200"></i>
+        </div>
+
+        <!-- Seva Category Filter Pills -->
+        <div class="flex gap-2 overflow-x-auto custom-scroll py-0.5">
+          <button onclick="filterSevaList('All')" class="seva-filter-btn active bg-saffron-600 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-sm whitespace-nowrap transition">
+            All Seva
+          </button>
+          <button onclick="filterSevaList('Stay')" class="seva-filter-btn bg-white text-stone-700 text-xs px-3 py-1.5 rounded-full font-medium border border-stone-200 shadow-sm whitespace-nowrap transition">
+            🛏️ Accommodation
+          </button>
+          <button onclick="filterSevaList('Food')" class="seva-filter-btn bg-white text-stone-700 text-xs px-3 py-1.5 rounded-full font-medium border border-stone-200 shadow-sm whitespace-nowrap transition">
+            🍛 Annadaan / Food
+          </button>
+          <button onclick="filterSevaList('Water')" class="seva-filter-btn bg-white text-stone-700 text-xs px-3 py-1.5 rounded-full font-medium border border-stone-200 shadow-sm whitespace-nowrap transition">
+            💧 Mineral Water
+          </button>
+        </div>
+
+        <!-- Seva Provider Registration Switch -->
+        <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-saffron-200 shadow-sm">
+          <div>
+            <p class="text-xs font-bold text-stone-800" data-key="offering_seva_q">Are you offering Seva?</p>
+            <p class="text-[11px] text-stone-500" data-key="offering_seva_desc">List free stay, water point or food seva</p>
+          </div>
+          <button onclick="openModal('sevaModal')" class="bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow transition whitespace-nowrap">
+            <span data-key="register_seva_btn">+ Register Seva</span>
+          </button>
+        </div>
+
+        <!-- Available Seva Directory -->
+        <div class="space-y-3" id="sevaListContainer">
+          <!-- Item 1: Free Stay -->
+          <div class="seva-card bg-white p-3.5 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-2" data-category="Stay">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Verified Accommodation</span>
+                <h4 class="font-bold text-stone-900 text-sm mt-1">Shri Vitthal Mangal Karyalaya</h4>
+                <p class="text-xs text-stone-500">Capacity: 250 Pilgrims (Separate hall for women, clean washrooms)</p>
+              </div>
+              <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">80 Spots Free</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-stone-600 border-t pt-2 border-stone-100">
+              <span class="flex items-center gap-1 font-medium"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-saffron-600"></i> 450m from Palkhi route</span>
+              <div class="flex gap-2">
+                <button onclick="navToLocation(18.5140, 73.8520, 'Shri Vitthal Mangal Karyalaya')" class="bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 font-semibold px-2.5 py-1 rounded transition">
+                  Directions
+                </button>
+                <button onclick="dialNumber('+919822011223')" class="bg-saffron-100 hover:bg-saffron-200 active:scale-95 text-saffron-800 font-bold px-2.5 py-1 rounded transition flex items-center gap-1">
+                  <i data-lucide="phone" class="w-3 h-3"></i> Contact Host
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 2: Mahaprasad Seva -->
+          <div class="seva-card bg-white p-3.5 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-2" data-category="Food">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">Annadaan (Food Seva)</span>
+                <h4 class="font-bold text-stone-900 text-sm mt-1">Sant Tukaram Seva Mandal</h4>
+                <p class="text-xs text-stone-500">Khichdi, Poha, Tea, Warm Milk &amp; Mineral Water Tankers</p>
+              </div>
+              <span class="text-xs font-bold text-saffron-600 bg-saffron-50 px-2 py-1 rounded">Continuous 24/7</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-stone-600 border-t pt-2 border-stone-100">
+              <span class="flex items-center gap-1 font-medium"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-saffron-600"></i> Near Toll Plaza Gate</span>
+              <div class="flex gap-2">
+                <button onclick="navToLocation(18.5250, 73.8650, 'Sant Tukaram Mahaprasad Point')" class="bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 font-semibold px-2.5 py-1 rounded transition">
+                  Directions
+                </button>
+                <button onclick="dialNumber('+919850123456')" class="bg-saffron-100 hover:bg-saffron-200 active:scale-95 text-saffron-800 font-bold px-2.5 py-1 rounded transition flex items-center gap-1">
+                  <i data-lucide="phone" class="w-3 h-3"></i> Contact Host
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 3: Pure Drinking Water Station -->
+          <div class="seva-card bg-white p-3.5 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-2" data-category="Water">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded">Pure Water Point (जलसेवा)</span>
+                <h4 class="font-bold text-stone-900 text-sm mt-1">Rotary Club Chilled RO Water Booth</h4>
+                <p class="text-xs text-stone-500">30,000 Liters RO Chilled Filtered Water + ORS Sachets</p>
+              </div>
+              <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">Free Refill</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-stone-600 border-t pt-2 border-stone-100">
+              <span class="flex items-center gap-1 font-medium"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-saffron-600"></i> Hadapsar Bypass Junction</span>
+              <div class="flex gap-2">
+                <button onclick="navToLocation(18.5020, 73.9310, 'Rotary Water Booth')" class="bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 font-semibold px-2.5 py-1 rounded transition">
+                  Directions
+                </button>
+                <button onclick="dialNumber('+919422001122')" class="bg-saffron-100 hover:bg-saffron-200 active:scale-95 text-saffron-800 font-bold px-2.5 py-1 rounded transition flex items-center gap-1">
+                  <i data-lucide="phone" class="w-3 h-3"></i> Contact
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Nirmal Wari Sanitation & River Cleanliness Accountability -->
+      <section id="view-sanitation" class="h-full w-full hidden overflow-y-auto custom-scroll p-4 pb-24 space-y-4">
+        <div class="bg-gradient-to-r from-teal-700 to-emerald-600 p-4 rounded-2xl text-white shadow-lg">
+          <div class="flex justify-between items-center">
+            <div>
+              <h2 class="font-black text-lg" data-key="nirmal_title">Nirmal Wari Sanitation Hub</h2>
+              <p class="text-xs text-teal-100" data-key="nirmal_subtitle">Citizen Point-Shoot-Send Grievance Redressal</p>
+            </div>
+            <i data-lucide="sparkles" class="w-8 h-8 text-teal-200"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
+          <h3 class="font-bold text-stone-900 text-sm mb-1" data-key="grievance_title">Instant Sanitation Grievance Mailer</h3>
+          <p class="text-xs text-stone-500 mb-3" data-key="grievance_desc">
+            Snap dirty toilets or river bank trash. App fetches precise coordinates &amp; automatically dispatches formal grievance tickets directly to Gram Panchayat / Municipal Health Officers.
+          </p>
+
+          <form id="grievanceForm" onsubmit="handleGrievanceSubmit(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-stone-700 mb-1" data-key="issue_cat_label">Issue Category</label>
+              <select id="issueType" class="w-full text-xs p-2.5 rounded-lg border border-stone-300 bg-white outline-none focus:ring-2 focus:ring-teal-500 font-medium">
+                <option value="Dirty Mobile Toilet / Lack of Water">Dirty Mobile Toilet / Lack of Water</option>
+                <option value="River Bank (Indrayani/Chandrabhaga) Contamination">River Bank (Indrayani/Chandrabhaga) Contamination</option>
+                <option value="Accumulated Plastic / Road Waste">Accumulated Plastic / Road Waste</option>
+                <option value="Overflowing Drainage on Palkhi Path">Overflowing Drainage on Palkhi Path</option>
+                <option value="Drinking Water Contamination">Drinking Water Contamination</option>
+              </select>
+            </div>
+
+            <!-- Point-Shoot Camera Capture -->
+            <div>
+              <label class="block text-xs font-semibold text-stone-700 mb-1" data-key="photo_proof_label">Photo Proof (Point &amp; Shoot)</label>
+              <div class="border-2 border-dashed border-teal-300 bg-teal-50/50 p-4 rounded-xl text-center cursor-pointer hover:bg-teal-50 transition relative">
+                <input type="file" accept="image/*" capture="environment" id="dirtPhoto" onchange="previewUpload(this, 'sanitationPhotoLabel', 'sanitationPhotoPreviewImg')" class="hidden" />
+                <label for="dirtPhoto" class="cursor-pointer flex flex-col items-center">
+                  <i data-lucide="camera" class="w-7 h-7 text-teal-600 mb-1"></i>
+                  <span id="sanitationPhotoLabel" class="text-xs text-stone-800 font-bold">Tap to Take Photo of Dirty Spot</span>
+                  <span class="text-[10px] text-stone-500">Geo-tag will be embedded automatically</span>
+                </label>
+                <img id="sanitationPhotoPreviewImg" class="hidden w-full h-32 object-cover rounded-lg mt-2 border border-teal-200 shadow-sm" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-stone-700 mb-1" data-key="auto_loc_label">Automatic Location &amp; Gram Panchayat Tag</label>
+              <div class="flex gap-2">
+                <input type="text" id="grievanceLocation" placeholder="Click Fetch to Tag Location..." readonly class="flex-1 text-xs p-2.5 rounded-lg bg-stone-100 border border-stone-300 font-mono text-stone-700" />
+                <button type="button" onclick="autoFetchLocation()" class="bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs px-3.5 py-2 rounded-lg font-bold transition shadow-sm whitespace-nowrap">
+                  Fetch GPS
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-teal-700 hover:bg-teal-800 active:scale-95 text-white font-bold py-2.5 rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              <span data-key="dispatch_ticket_btn">Dispatch Auto-Ticket to Local Panchayat Email</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Recent Resolved Tickets & Live Feed -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
+          <h4 class="font-bold text-stone-800 text-xs mb-2.5 flex items-center justify-between">
+            <span data-key="panchayat_status_title">Live Panchayat Action Status</span>
+            <span class="text-[10px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded font-bold">Auto-Sync</span>
+          </h4>
+          <div class="space-y-2.5 text-xs" id="grievanceTicketsFeed">
+            <div class="border-l-4 border-emerald-500 pl-2.5 py-1 bg-emerald-50/40 rounded-r-lg">
+              <div class="flex justify-between items-start">
+                <p class="font-bold text-stone-800">Cleaning of Sector 4 Mobile Bio-Toilets</p>
+                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">Resolved</span>
+              </div>
+              <p class="text-[10px] text-emerald-700 font-medium mt-0.5">Alandi Municipal Council Sanitization Team • 18 mins ago</p>
+            </div>
+            <div class="border-l-4 border-amber-500 pl-2.5 py-1 bg-amber-50/40 rounded-r-lg">
+              <div class="flex justify-between items-start">
+                <p class="font-bold text-stone-800">River Ghat Cleaning Crew Dispatched</p>
+                <span class="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded">In Progress</span>
+              </div>
+              <p class="text-[10px] text-amber-700 font-medium mt-0.5">Indrayani River Basin Ward #2 • Action Team En Route</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar (App Dock) -->
+    <nav class="bg-white border-t border-stone-200 px-2 py-2 flex justify-around items-center z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex-shrink-0">
+      <button onclick="switchTab('map')" id="nav-map" class="nav-btn flex flex-col items-center p-1 text-saffron-600 font-bold transition">
+        <i data-lucide="map" class="w-5 h-5"></i>
+        <span class="text-[10px] mt-0.5" data-key="nav_live">Live Palkhi</span>
+      </button>
+
+      <button onclick="switchTab('safety')" id="nav-safety" class="nav-btn flex flex-col items-center p-1 text-stone-500 transition">
+        <i data-lucide="shield-alert" class="w-5 h-5"></i>
+        <span class="text-[10px] mt-0.5" data-key="nav_safety">Safety &amp; SOS</span>
+      </button>
+
+      <button onclick="switchTab('seva')" id="nav-seva" class="nav-btn flex flex-col items-center p-1 text-stone-500 transition">
+        <i data-lucide="hand-heart" class="w-5 h-5"></i>
+        <span class="text-[10px] mt-0.5" data-key="nav_seva">Seva Network</span>
+      </button>
+
+      <button onclick="switchTab('sanitation')" id="nav-sanitation" class="nav-btn flex flex-col items-center p-1 text-stone-500 transition">
+        <i data-lucide="sparkle" class="w-5 h-5"></i>
+        <span class="text-[10px] mt-0.5" data-key="nav_clean">Nirmal Wari</span>
+      </button>
+    </nav>
+
+    <!-- MODAL 1: Mitra Volunteer KYC Registration -->
+    <div id="kycModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-3 backdrop-blur-xs">
+      <div class="bg-white w-full rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="flex justify-between items-center border-b pb-2">
+          <div>
+            <h3 class="font-bold text-stone-900 text-sm" data-key="kyc_modal_title">Varkari Mitra KYC Verification</h3>
+            <p class="text-[11px] text-stone-500" data-key="kyc_modal_subtitle">Join as ground coordinator (Pacing / Seva guide)</p>
+          </div>
+          <button onclick="closeModal('kycModal')" class="text-stone-400 hover:text-stone-700 p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="handleKYCSubmit(event)" class="space-y-2.5 text-xs">
+          <div>
+            <label class="font-semibold text-stone-700">Full Name (पूर्ण नाव)</label>
+            <input type="text" id="kycName" required placeholder="e.g. Dnyaneshwar Patil" class="w-full p-2.5 border border-stone-300 rounded-lg outline-none focus:ring-2 focus:ring-saffron-500" />
+          </div>
+          <div>
+            <label class="font-semibold text-stone-700">Aadhaar / Gov ID Verification (आधार क्र.)</label>
+            <input type="text" id="kycAadhaar" required placeholder="XXXX-XXXX-XXXX" maxlength="14" class="w-full p-2.5 border border-stone-300 rounded-lg font-mono outline-none focus:ring-2 focus:ring-saffron-500" />
+          </div>
+          <div>
+            <label class="font-semibold text-stone-700">Assigned Operational Role</label>
+            <select id="kycRole" class="w-full p-2.5 border border-stone-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-saffron-500 font-medium">
+              <option value="leaderA">🚩 Wari Head Pacing Mitra (Front GPS)</option>
+              <option value="leaderB">🏁 Wari Tail Pacing Mitra (Rear Boundary)</option>
+              <option value="sanitation">✨ Sanitation &amp; Nirmal Wari Mitra</option>
+              <option value="medical">🚑 Medical Emergency Marshall</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2 bg-saffron-50 p-2.5 rounded-lg text-saffron-900 border border-saffron-200">
+            <input type="checkbox" id="gpsPerm" required checked class="w-4 h-4 accent-saffron-600" />
+            <label for="gpsPerm" class="text-[11px] font-medium leading-tight">Grant high-accuracy continuous GPS permission to guide RTO &amp; Pilgrims</label>
+          </div>
+          <button type="submit" class="w-full bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white font-bold py-2.5 rounded-lg shadow-md transition text-xs">
+            Complete KYC &amp; Activate Mitra ID
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 2: Register Seva Accommodation / Food -->
+    <div id="sevaModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-3 backdrop-blur-xs">
+      <div class="bg-white w-full rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="flex justify-between items-center border-b pb-2">
+          <div>
+            <h3 class="font-bold text-stone-900 text-sm" data-key="seva_modal_title">Register Seva (सेवा नोंदणी)</h3>
+            <p class="text-[11px] text-stone-500" data-key="seva_modal_subtitle">Provide free lodging, water, or food seva</p>
+          </div>
+          <button onclick="closeModal('sevaModal')" class="text-stone-400 hover:text-stone-700 p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="handleSevaSubmit(event)" class="space-y-2.5 text-xs">
+          <div>
+            <label class="font-semibold text-stone-700">Facility / Organization Name</label>
+            <input type="text" id="sevaName" required placeholder="e.g. Tukaram Bhavan / Vitthal Seva Trust" class="w-full p-2.5 border border-stone-300 rounded-lg outline-none focus:ring-2 focus:ring-saffron-500" />
+          </div>
+          <div>
+            <label class="font-semibold text-stone-700">Seva Category</label>
+            <select id="sevaCategory" class="w-full p-2.5 border border-stone-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-saffron-500 font-medium">
+              <option value="Stay">🛏️ Free Stay / Accommodation</option>
+              <option value="Food">🍛 Mahaprasad / Annadaan</option>
+              <option value="Water">💧 Drinking Water Point</option>
+              <option value="Medical">🏥 First Aid / Medical Seva</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-stone-700">Capacity / Quantity Available</label>
+            <input type="text" id="sevaCapacity" required placeholder="e.g. 150 beds free / 2000 meals per hr" class="w-full p-2.5 border border-stone-300 rounded-lg outline-none focus:ring-2 focus:ring-saffron-500" />
+          </div>
+          <div>
+            <label class="font-semibold text-stone-700">Contact Number</label>
+            <input type="tel" id="sevaContact" required placeholder="+91 XXXXX XXXXX" class="w-full p-2.5 border border-stone-300 rounded-lg outline-none focus:ring-2 focus:ring-saffron-500 font-mono" />
+          </div>
+          <button type="submit" class="w-full bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white font-bold py-2.5 rounded-lg shadow-md transition text-xs">
+            Publish Seva to Pilgrims
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 3: Login / Profile -->
+    <div id="loginModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-3 backdrop-blur-xs">
+      <div class="bg-white w-full rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="flex justify-between items-center border-b pb-2">
+          <div>
+            <h3 id="loginModalTitle" class="font-bold text-stone-900 text-sm">Varimitra Login</h3>
+            <p class="text-[11px] text-stone-500">Access your Mitra ID, KYC & device tracking</p>
+          </div>
+          <button onclick="closeModal('loginModal')" class="text-stone-400 hover:text-stone-700 p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="handleEmailLogin(event)" class="space-y-2.5 text-xs">
+          <div>
+            <label class="font-semibold text-stone-700">Email</label>
+            <input type="email" id="loginEmail" required placeholder="you@example.com" class="w-full p-2.5 border border-stone-300 rounded-lg outline-none focus:ring-2 focus:ring-saffron-500" />
+          </div>
+          <div>
+            <label class="font-semibold text-stone-700">Password</label>
+            <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full p-2.5 border border-stone-300 rounded-lg outline-none focus:ring-2 focus:ring-saffron-500" />
+          </div>
+          <button type="submit" class="w-full bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white font-bold py-2.5 rounded-lg shadow-md transition text-xs">
+            Login
+          </button>
+        </form>
+
+        <div class="flex items-center gap-2 text-[10px] text-stone-500">
+          <div class="flex-1 h-px bg-stone-200"></div>
+          <span>OR</span>
+          <div class="flex-1 h-px bg-stone-200"></div>
+        </div>
+
+        <button onclick="handleGoogleLogin()" class="w-full bg-white border border-stone-300 hover:bg-stone-50 active:scale-95 text-stone-800 font-bold py-2.5 rounded-lg shadow-sm transition text-xs flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.3v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.08z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Continue with Google
+        </button>
+
+        <div class="text-center text-[10px] text-stone-500">
+          <span id="loginStatusText">Not logged in</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 4: Profile & Devices -->
+    <div id="profileModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-3 backdrop-blur-xs">
+      <div class="bg-white w-full rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="flex justify-between items-center border-b pb-2">
+          <div>
+            <h3 class="font-bold text-stone-900 text-sm">Mitra Profile</h3>
+            <p class="text-[11px] text-stone-500">Your devices, KYC & tracking</p>
+          </div>
+          <button onclick="closeModal('profileModal')" class="text-stone-400 hover:text-stone-700 p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div id="profileContent" class="space-y-3 text-xs">
+          <div class="p-3 rounded-lg bg-stone-50 border border-stone-200">
+            <p class="text-stone-500 text-center">Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-16 left-4 right-4 z-50 transform -translate-y-32 transition duration-300 bg-stone-900 text-white text-xs p-3 rounded-xl shadow-2xl flex items-center gap-2 border border-stone-700">
+      <i data-lucide="info" class="w-4 h-4 text-saffron-400 flex-shrink-0"></i>
+      <span id="toastMsg" class="flex-1 font-medium">Notification message</span>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // ──────────────────────────────────────────────────────────────────
+    // Multilingual Dictionary (English & Marathi)
+    // ──────────────────────────────────────────────────────────────────
+    let currentLang = 'EN';
+    const dict = {
+      EN: {
+        nav_live: "Live Palkhi",
+        nav_safety: "Safety & SOS",
+        nav_seva: "Seva Network",
+        nav_clean: "Nirmal Wari",
+        head_title: "वारकरी मित्र",
+        head_subtitle: "Varkari Mitra System",
+        mitra_kyc_btn: "Mitra KYC",
+        filter_all: "🚩 All Live Points",
+        filter_palkhi: "🚶 Head & Tail Pacing",
+        filter_ambulance: "🚑 Green Corridors",
+        filter_seva: "🏠 Seva Rest Stops",
+        rto_banner: "Live Procession Boundary (RTO Active)",
+        head_label: "WARI HEAD (अग्रभागी)",
+        tail_label: "WARI TAIL (शेवट)",
+        safety_hub_title: "Emergency & Safety Hub",
+        safety_hub_subtitle: "Direct integration with Police & Medical RTO",
+        broadcast_sos_btn: "BROADCAST INSTANT MEDICAL / POLICE SOS",
+        lost_child_title: "Lost / Missing Child Reporting",
+        police_push_badge: "Police Push",
+        lost_child_desc: "Upload child photo and instant GPS tag to alert all nearby registered Mitras and local Police control room.",
+        lost_child_submit: "Publish Alert to Police & Mitra Mesh",
+        anti_theft_title: "Community Anti-Theft Mesh Tracker",
+        network_watch_badge: "Network Watch",
+        anti_theft_desc: "Lost your mobile in crowd? Raise a lookup alert from another registered Mitra's device.",
+        activate_track_btn: "Activate Track",
+        medical_posts_title: "Nearest Medical Posts & Ambulance Paths",
+        seva_title: "सेवा नेटवर्क (Seva Network)",
+        seva_subtitle: "Free Food (Annadaan), Water & Lodging verified by Mitras",
+        offering_seva_q: "Are you offering Seva?",
+        offering_seva_desc: "List free stay, water point or food seva",
+        register_seva_btn: "+ Register Seva",
+        nirmal_title: "Nirmal Wari Sanitation Hub",
+        nirmal_subtitle: "Citizen Point-Shoot-Send Grievance Redressal",
+        grievance_title: "Instant Sanitation Grievance Mailer",
+        grievance_desc: "Snap dirty toilets or river bank trash. App fetches precise coordinates & automatically dispatches formal grievance tickets directly to Gram Panchayat / Municipal Health Officers.",
+        issue_cat_label: "Issue Category",
+        photo_proof_label: "Photo Proof (Point & Shoot)",
+        auto_loc_label: "Automatic Location & Gram Panchayat Tag",
+        dispatch_ticket_btn: "Dispatch Auto-Ticket to Local Panchayat Email",
+        panchayat_status_title: "Live Panchayat Action Status",
+        kyc_modal_title: "Varkari Mitra KYC Verification",
+        kyc_modal_subtitle: "Join as ground coordinator (Pacing / Seva guide)",
+        seva_modal_title: "Register Seva (सेवा नोंदणी)",
+        seva_modal_subtitle: "Provide free lodging, water, or food seva"
+      },
+      MR: {
+        nav_live: "थेट पालखी",
+        nav_safety: "सुरक्षा व मदत",
+        nav_seva: "सेवा नेटवर्क",
+        nav_clean: "निर्मल वारी",
+        head_title: "वारकरी मित्र",
+        head_subtitle: "वारकरी मित्र प्रणाली",
+        mitra_kyc_btn: "मित्र केवायसी",
+        filter_all: "🚩 सर्व थेट स्थाने",
+        filter_palkhi: "🚶 अग्रभाग व शेवट अंतर",
+        filter_ambulance: "🚑 ग्रीन कॉरिडॉर",
+        filter_seva: "🏠 सेवा व मुक्काम",
+        rto_banner: "थेट पालखी सीमा (RTO डायव्हर्शन सक्रिय)",
+        head_label: "वारी अग्रभाग (पुढे)",
+        tail_label: "वारी शेवट (मागे)",
+        safety_hub_title: "आपत्कालीन व सुरक्षा केंद्र",
+        safety_hub_subtitle: "पोलीस व रुग्णवाहिका थेट जोडणी",
+        broadcast_sos_btn: "तातडीची वैद्यकीय / पोलीस मदत (SOS)",
+        lost_child_title: "हरवलेली मुले / व्यक्ती नोंदणी",
+        police_push_badge: "पोलीस नियंत्रण",
+        lost_child_desc: "मुलाचा फोटो आणि थेट GPS लोकेशन अपलोड करा; जवळच्या सर्व मित्रांना व पोलिसांना त्वरित अलर्ट पाठवला जाईल.",
+        lost_child_submit: "पोलीस व मित्र नेटवर्कवर अलर्ट पाठवा",
+        anti_theft_title: "चोरीविरोधी नेटवर्क ट्रॅकर",
+        network_watch_badge: "नेटवर्क वॉच",
+        anti_theft_desc: "गर्दीत मोबाईल हरवला? इतर मित्रांच्या फोनवरून तात्काळ ट्रॅकिंग सुरू करा.",
+        activate_track_btn: "शोध सुरू करा",
+        medical_posts_title: "जवळची वैद्यकीय पथके व रुग्णवाहिका मार्ग",
+        seva_title: "सेवा नेटवर्क (अन्नदान व मुक्काम)",
+        seva_subtitle: "वारकऱ्यांसाठी मोफत अन्नदान, पाणी व मुक्काम सोय",
+        offering_seva_q: "तुम्ही सेवा देऊ इच्छिता का?",
+        offering_seva_desc: "मोफत मुक्काम, अन्नछत्र किंवा पाणी सेवा नोंदवा",
+        register_seva_btn: "+ सेवा नोंदणी करा",
+        nirmal_title: "निर्मल वारी स्वच्छता केंद्र",
+        nirmal_subtitle: "नागरिक तक्रार निवारण - थेट ग्रामपंचायत",
+        grievance_title: "त्वरित स्वच्छता तक्रार",
+        grievance_desc: "अस्वच्छता किंवा कचऱ्याचा फोटो काढा; अचूक लोकेशनसह तक्रार थेट ग्रामपंचायत / पालिकेला पाठवली जाईल.",
+        issue_cat_label: "तक्रार प्रकार",
+        photo_proof_label: "फोटो पुरावा (कॅमेरा)",
+        auto_loc_label: "स्वयंचलित लोकेशन व ग्रामपंचायत टॅग",
+        dispatch_ticket_btn: "स्थानिक ग्रामपंचायतीस तक्रार पाठवा",
+        panchayat_status_title: "थेट ग्रामपंचायत कारवाई स्थिती",
+        kyc_modal_title: "वारकरी मित्र केवायसी पडताळणी",
+        kyc_modal_subtitle: "ग्राउंड समन्वयक म्हणून सहभागी व्हा",
+        seva_modal_title: "सेवा नोंदणी (अन्न / मुक्काम)",
+        seva_modal_subtitle: "मोफत अन्नदान, पाणी अथवा मुक्काम सोय उपलब्ध करा",
+        login_btn: "Login",
+        profile_title: "Mitra Profile",
+        profile_subtitle: "Your devices, KYC & tracking",
+        login_status_not_logged: "Not logged in",
+        login_status_logged: "Logged in as",
+        kyc_status_pending: "KYC Pending",
+        kyc_status_verified: "KYC Verified",
+        track_mode_own: "My Devices",
+        track_mode_other: "Track Another Mitra",
+        cross_track_title: "Cross-User Track Active",
+        no_devices_msg: "No devices registered"
+      }
+    };
+
+    function toggleLang() {
+      currentLang = currentLang === 'EN' ? 'MR' : 'EN';
+      document.getElementById('langLabel').innerText = currentLang === 'EN' ? 'मराठी' : 'English';
+      document.querySelectorAll('[data-key]').forEach(elem => {
+        const key = elem.getAttribute('data-key');
+        if (dict[currentLang][key]) {
+          elem.innerText = dict[currentLang][key];
+        }
+      });
+      showToast(currentLang === 'EN' ? 'Language switched to English' : 'भाषा मराठीत बदलली');
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Tab Navigation
+    // ──────────────────────────────────────────────────────────────────
+    function switchTab(tabId) {
+      const tabs = ['map', 'safety', 'seva', 'sanitation'];
+      tabs.forEach(t => {
+        const view = document.getElementById(`view-${t}`);
+        const nav = document.getElementById(`nav-${t}`);
+        if (view) view.classList.add('hidden');
+        if (nav) {
+          nav.classList.remove('text-saffron-600', 'font-bold');
+          nav.classList.add('text-stone-500');
+        }
+      });
+
+      const activeView = document.getElementById(`view-${tabId}`);
+      const activeNav = document.getElementById(`nav-${tabId}`);
+      if (activeView) activeView.classList.remove('hidden');
+      if (activeNav) {
+        activeNav.classList.add('text-saffron-600', 'font-bold');
+        activeNav.classList.remove('text-stone-500');
+      }
+
+      if (tabId === 'map') {
+        setTimeout(() => map.invalidateSize(), 200);
+      }
+      lucide.createIcons();
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Modal & Toast Helpers
+    // ──────────────────────────────────────────────────────────────────
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      lucide.createIcons();
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    let toastTimeout = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('-translate-y-32');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('-translate-y-32');
+      }, 3500);
+    }
+
+    // Native Dialing Bridge
+    function dialNumber(phone) {
+      if (window.Android && window.Android.openDialer) {
+        window.Android.openDialer(phone);
+      } else {
+        window.location.href = `tel:${phone}`;
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Leaflet Real-time Map & Route Engine
+    // ──────────────────────────────────────────────────────────────────
+    const map = L.map('map', { zoomControl: false }).setView([18.5204, 73.8700], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // Custom Map Marker Icon Builder
+    const createCustomIcon = (bgColor, iconText) => L.divIcon({
+      html: `<div style="background-color: ${bgColor}; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; border: 2.5px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.35); font-size: 15px;">${iconText}</div>`,
+      className: '',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
+    // Palkhi Procession Trail & Route Path
+    const palkhiRouteCoords = [
+      [18.6186, 73.8936], // Alandi
+      [18.5700, 73.8800], // Vishrantwadi
+      [18.5300, 73.8750], // Pune Station / Sangamwadi
+      [18.5100, 73.8650], // Nana Peth
+      [18.5020, 73.9260], // Hadapsar Gadital
+      [18.4600, 73.9600], // Phursungi
+      [18.3900, 74.0050], // Dive Ghat
+      [18.3450, 74.0298]  // Saswad
+    ];
+
+    const routePolyline = L.polyline(palkhiRouteCoords, {
+      color: '#ea580c',
+      weight: 5,
+      opacity: 0.85,
+      dashArray: '8, 8'
+    }).addTo(map);
+
+    // Ambulance Green Corridor Path
+    const ambulanceCorridorCoords = [
+      [18.5280, 73.8740],
+      [18.5200, 73.8600],
+      [18.5089, 73.9260]
+    ];
+    const ambulancePolyline = L.polyline(ambulanceCorridorCoords, {
+      color: '#dc2626',
+      weight: 6,
+      opacity: 0.9
+    });
+
+    const markers = [];
+
+    // Master Points Data
+    const pointsData = [
+      { id: 'head', type: 'palkhi', lat: 18.5020, lng: 73.9260, icon: '🚩', color: '#ea580c', title: 'WARI HEAD (अग्रभागी)', desc: 'Designated Front Mitra GPS pacing active • Hadapsar Gadital', phone: '+919822011223' },
+      { id: 'tail', type: 'palkhi', lat: 18.4600, lng: 73.9600, icon: '🏁', color: '#c2410c', title: 'WARI TAIL (शेवट)', desc: 'Rear Mitra boundary for RTO traffic diversions • Phursungi Bridge', phone: '+919822099881' },
+      { id: 'amb1', type: 'ambulance', lat: 18.5200, lng: 73.8600, icon: '🚑', color: '#dc2626', title: '108 Ambulance Unit #7', desc: 'Active Green Corridor standby. Emergency ready.', phone: '108' },
+      { id: 'med1', type: 'ambulance', lat: 18.5089, lng: 73.9260, icon: '🏥', color: '#e11d48', title: 'Red Cross First Aid Sector B', desc: 'Doctors and trauma stabilization unit.', phone: '+919822199881' },
+      { id: 'sev1', type: 'seva', lat: 18.5140, lng: 73.8520, icon: '🏠', color: '#16a34a', title: 'Shri Vitthal Mangal Karyalaya', desc: 'Free Stay: 80 beds available with drinking water.', phone: '+919822011223' },
+      { id: 'sev2', type: 'seva', lat: 18.5250, lng: 73.8650, icon: '🍛', color: '#f59e0b', title: 'Sant Tukaram Mahaprasad Point', desc: 'Free warm food (Annadaan) distribution 24/7.', phone: '+919850123456' },
+      { id: 'sev3', type: 'seva', lat: 18.5020, lng: 73.9310, icon: '💧', color: '#0284c7', title: 'Rotary Club Chilled RO Water', desc: '30,000L filtered drinking water and ORS packets.', phone: '+919422001122' }
+    ];
+
+    let currentFilter = 'all';
+
+    function renderMapMarkers(filter = currentFilter) {
+      currentFilter = filter;
+      markers.forEach(m => map.removeLayer(m));
+      markers.length = 0;
+
+      // Update Filter Pill Styling
+      ['all', 'palkhi', 'ambulance', 'seva'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        if (!btn) return;
+        if (f === filter) {
+          btn.className = "bg-saffron-600 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-md whitespace-nowrap active:scale-95 transition border border-saffron-600";
+        } else {
+          btn.className = "glassmorphism text-stone-800 text-xs px-3 py-1.5 rounded-full font-medium shadow whitespace-nowrap border border-stone-200 active:scale-95 transition";
+        }
+      });
+
+      // Handle Ambulance Corridor visibility
+      if (filter === 'ambulance' || filter === 'all') {
+        if (!map.hasLayer(ambulancePolyline)) ambulancePolyline.addTo(map);
+      } else {
+        if (map.hasLayer(ambulancePolyline)) map.removeLayer(ambulancePolyline);
+      }
+
+      pointsData.forEach(p => {
+        if (filter === 'all' || p.type === filter) {
+          const marker = L.marker([p.lat, p.lng], {
+            icon: createCustomIcon(p.color, p.icon)
+          }).addTo(map);
+
+          const popupHtml = `
+            <div style="min-width: 170px; font-family: inherit;">
+              <h4 style="font-weight: bold; font-size: 13px; color: #1c1917; margin: 0 0 4px 0;">${p.title}</h4>
+              <p style="font-size: 11px; color: #57534e; margin: 0 0 8px 0; line-height: 1.3;">${p.desc}</p>
+              <div style="display: flex; gap: 6px;">
+                ${p.phone ? `<button onclick="dialNumber('${p.phone}')" style="flex:1; background: #ea580c; color: white; border: none; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: bold; cursor: pointer;">📞 Call</button>` : ''}
+                <button onclick="navToLocation(${p.lat}, ${p.lng}, '${p.title}')" style="flex:1; background: #f5f5f4; color: #292524; border: 1px solid #d6d3d1; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: bold; cursor: pointer;">📍 Route</button>
+              </div>
+            </div>
+          `;
+          marker.bindPopup(popupHtml);
+          markers.push(marker);
+        }
+      });
+    }
+
+    renderMapMarkers('all');
+
+    function filterMap(category) {
+      renderMapMarkers(category);
+      showToast(`Showing: ${category.toUpperCase()} on map`);
+    }
+
+    function recenterPalkhi() {
+      map.setView([18.4900, 73.9400], 13);
+      showToast('Centered on Active Palkhi Corridor');
+    }
+
+    let userLocationMarker = null;
+    function locateUserGPS() {
+      if (window.Android && window.Android.getGpsLocation) {
+        const coordsStr = window.Android.getGpsLocation();
+        showToast(`Locating your GPS: ${coordsStr}`);
+      }
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          if (userLocationMarker) map.removeLayer(userLocationMarker);
+          userLocationMarker = L.circleMarker([lat, lng], {
+            radius: 8,
+            fillColor: '#2563eb',
+            color: '#ffffff',
+            weight: 3,
+            opacity: 1,
+            fillOpacity: 0.9
+          }).addTo(map).bindPopup("<b>You Are Here</b><br>Live GPS Position").openPopup();
+          map.setView([lat, lng], 15);
+          showToast('GPS Location pinned on map');
+        }, () => {
+          map.setView([18.5204, 73.8567], 14);
+          showToast('Located near Pune Center');
+        });
+      }
+    }
+
+    function zoomToPoint(pointId) {
+      const p = pointsData.find(x => x.id === pointId);
+      if (p) {
+        map.setView([p.lat, p.lng], 15);
+        const marker = markers.find(m => m.getLatLng().lat === p.lat);
+        if (marker) marker.openPopup();
+      }
+    }
+
+    function navToLocation(lat, lng, label) {
+      if (window.Android && window.Android.openMapRoute) {
+        window.Android.openMapRoute(lat, lng);
+      } else {
+        switchTab('map');
+        map.setView([lat, lng], 15);
+        showToast(`Routing to: ${label || 'Destination'}`);
+      }
+    }
+
+    // Dynamic Live Palkhi telemetry update callable by Kotlin Android Bridge
+    window.updatePalkhiPositions = function(headLat, headLng, tailLat, tailLng, spanStr, speedStr, headLoc, tailLoc) {
+      const head = pointsData.find(p => p.id === 'head');
+      const tail = pointsData.find(p => p.id === 'tail');
+
+      if (head && headLat && headLng) {
+        head.lat = headLat;
+        head.lng = headLng;
+        head.desc = `Front GPS: (${headLat.toFixed(4)}, ${headLng.toFixed(4)})`;
+      }
+      if (tail && tailLat && tailLng) {
+        tail.lat = tailLat;
+        tail.lng = tailLng;
+        tail.desc = `Rear GPS: (${tailLat.toFixed(4)}, ${tailLng.toFixed(4)})`;
+      }
+
+      if (headLoc) document.getElementById('wariHeadLoc').innerText = headLoc;
+      if (tailLoc) document.getElementById('wariTailLoc').innerText = tailLoc;
+      if (speedStr) document.getElementById('wariHeadSpeed').innerText = `Speed: ${speedStr}`;
+      if (spanStr) document.getElementById('wariSpan').innerText = `Span: ${spanStr}`;
+
+      renderMapMarkers(currentFilter);
+    };
+
+    // ──────────────────────────────────────────────────────────────────
+    // Safety & SOS Handlers
+    // ──────────────────────────────────────────────────────────────────
+    let isSosActive = false;
+
+    function triggerSOS() {
+      if (window.Android && window.Android.triggerSOS) {
+        window.Android.triggerSOS();
+      }
+      isSosActive = true;
+      const refId = "SOS-" + Math.floor(10000 + Math.random() * 90000);
+      document.getElementById('sosTicketId').innerText = `Dispatch Ref: ${refId} • Alerting 108 & Police Control`;
+      document.getElementById('activeSosBanner').classList.remove('hidden');
+      showToast('🚨 Critical SOS Broadcasted! Medical & Police teams alerted with your GPS location.');
+      switchTab('safety');
+    }
+
+    function cancelSOS() {
+      isSosActive = false;
+      document.getElementById('activeSosBanner').classList.add('hidden');
+      showToast('SOS Alert marked resolved and cancelled.');
+    }
+
+    // Image Upload Live Preview Helper
+    function previewUpload(input, labelId, imgId) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        document.getElementById(labelId).innerText = `Selected: ${file.name.substring(0, 15)}...`;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const imgElem = document.getElementById(imgId);
+          if (imgElem) {
+            imgElem.src = e.target.result;
+            imgElem.classList.remove('hidden');
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function fetchGPSLocation(inputId) {
+      if (window.Android && window.Android.getGpsLocation) {
+        const coords = window.Android.getGpsLocation();
+        if (coords && coords !== "0.0, 0.0") {
+          document.getElementById(inputId).value = `${coords} (High Accuracy GPS)`;
+          showToast('GPS Coordinates tagged via FusedLocation Client');
+          return;
+        }
+      }
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const val = `${pos.coords.latitude.toFixed(4)}° N, ${pos.coords.longitude.toFixed(4)}° E (±${Math.round(pos.coords.accuracy)}m)`;
+            document.getElementById(inputId).value = val;
+            showToast('GPS Coordinates tagged successfully');
+          },
+          () => {
+            document.getElementById(inputId).value = "18.5204° N, 73.8567° E (Fused GPS)";
+            showToast('Tagged coordinates via fallback GPS');
+          }
+        );
+      } else {
+        document.getElementById(inputId).value = "18.5204° N, 73.8567° E (Fused GPS)";
+        showToast('Coordinates tagged via Fused GPS');
+      }
+    }
+
+    function handleChildReport(e) {
+      e.preventDefault();
+      const name = document.getElementById('childNameInput').value;
+      const attire = document.getElementById('childAttireInput').value;
+      const gps = document.getElementById('childGpsInput').value || "18.5020° N, 73.9260° E";
+      const photoInput = document.getElementById('childPhotoInput');
+
+      if (window.Android && window.Android.reportLostChild) {
+        window.Android.reportLostChild(name, attire, gps);
+      }
+
+      // Add to broadcast feed
+      const feed = document.getElementById('missingChildrenFeed');
+      const card = document.createElement('div');
+      card.className = "p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs space-y-1.5 shadow-sm";
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">BROADCAST ACTIVE</span>
+            <h5 class="font-bold text-stone-900 text-xs mt-1">${name}</h5>
+            <p class="text-[11px] text-stone-600">${attire}</p>
+          </div>
+          <span class="text-[10px] text-rose-700 font-mono font-bold">Just Now</span>
+        </div>
+        <p class="text-[10px] text-stone-500 font-mono">📍 Tagged: ${gps}</p>
+        <div class="flex gap-2 pt-1">
+          <button onclick="dialNumber('112')" class="bg-rose-600 text-white text-[10px] font-bold px-2 py-1 rounded">Call Police 112</button>
+          <button onclick="showToast('Sighting alert pinged to nearest Mitra')" class="bg-white border text-stone-700 text-[10px] font-semibold px-2 py-1 rounded">Report Sighting</button>
+        </div>
+      `;
+      feed.prepend(card);
+
+      showToast('Lost Child alert published to Police & 5,000+ Mitras!');
+      e.target.reset();
+      document.getElementById('childPhotoPreviewImg').classList.add('hidden');
+      document.getElementById('childPhotoLabel').innerText = "Snap/Upload Photo";
+    }
+
+    function trackStolenDevice() {
+      const imei = document.getElementById('imeiInput').value.trim();
+      if (!imei) {
+        showToast('Please enter IMEI or registered phone number.');
+        return;
+      }
+
+      if (window.Android && window.Android.trackStolenDevice) {
+        window.Android.trackStolenDevice(imei);
+      }
+
+      const resultBox = document.getElementById('stolenTrackResult');
+      document.getElementById('trackResultTitle').innerText = `📡 Mesh Tracking: #${imei}`;
+      document.getElementById('trackResultDesc').innerText = `Device signal detected near Hadapsar Gadital Sector. 4 nearby Mitras alerted.`;
+      resultBox.classList.remove('hidden');
+      showToast(`Anti-theft protocol activated for #${imei}`);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Seva Network Handlers
+    // ──────────────────────────────────────────────────────────────────
+    function filterSevaList(category) {
+      document.querySelectorAll('.seva-filter-btn').forEach(btn => {
+        if (btn.innerText.includes(category) || (category === 'All' && btn.innerText.includes('All'))) {
+          btn.className = "seva-filter-btn active bg-saffron-600 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-sm whitespace-nowrap transition";
+        } else {
+          btn.className = "seva-filter-btn bg-white text-stone-700 text-xs px-3 py-1.5 rounded-full font-medium border border-stone-200 shadow-sm whitespace-nowrap transition";
+        }
+      });
+
+      document.querySelectorAll('.seva-card').forEach(card => {
+        if (category === 'All' || card.getAttribute('data-category') === category) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+
+    function handleSevaSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('sevaName').value;
+      const cat = document.getElementById('sevaCategory').value;
+      const cap = document.getElementById('sevaCapacity').value;
+      const contact = document.getElementById('sevaContact').value;
+
+      if (window.Android && window.Android.registerSeva) {
+        window.Android.registerSeva(name, cat, cap, contact);
+      }
+
+      // Prepend newly created Seva to directory list
+      const container = document.getElementById('sevaListContainer');
+      const card = document.createElement('div');
+      card.className = "seva-card bg-white p-3.5 rounded-xl border border-stone-200 shadow-sm flex flex-col gap-2";
+      card.setAttribute('data-category', cat);
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="bg-saffron-100 text-saffron-800 text-[10px] font-bold px-2 py-0.5 rounded">New Community Seva (${cat})</span>
+            <h4 class="font-bold text-stone-900 text-sm mt-1">${name}</h4>
+            <p class="text-xs text-stone-500">${cap}</p>
+          </div>
+          <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Available</span>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-stone-600 border-t pt-2 border-stone-100">
+          <span class="flex items-center gap-1 font-medium"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-saffron-600"></i> Added via Mitra Seva Portal</span>
+          <div class="flex gap-2">
+            <button onclick="navToLocation(18.5204, 73.8567, '${name}')" class="bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold px-2.5 py-1 rounded transition">Directions</button>
+            <button onclick="dialNumber('${contact}')" class="bg-saffron-100 active:bg-saffron-200 text-saffron-800 font-bold px-2.5 py-1 rounded transition flex items-center gap-1">
+              <i data-lucide="phone" class="w-3 h-3"></i> Contact Host
+            </button>
+          </div>
+        </div>
+      `;
+      container.prepend(card);
+
+      // Also add dynamic Seva marker on map
+      pointsData.push({
+        id: 'user_seva_' + Date.now(),
+        type: 'seva',
+        lat: 18.5180 + (Math.random() - 0.5) * 0.02,
+        lng: 73.8650 + (Math.random() - 0.5) * 0.02,
+        icon: cat === 'Food' ? '🍛' : (cat === 'Water' ? '💧' : '🏠'),
+        color: '#16a34a',
+        title: name,
+        desc: `${cap} • Contact: ${contact}`,
+        phone: contact
+      });
+      renderMapMarkers(currentFilter);
+
+      lucide.createIcons();
+      closeModal('sevaModal');
+      showToast('Seva listing published to all pilgrims!');
+      e.target.reset();
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Nirmal Wari Sanitation Handlers
+    // ──────────────────────────────────────────────────────────────────
+    function autoFetchLocation() {
+      if (window.Android && window.Android.getGpsLocation) {
+        const coords = window.Android.getGpsLocation();
+        document.getElementById('grievanceLocation').value = `Alandi Gram Panchayat, Sec-3 (${coords})`;
+        showToast('Gram Panchayat identified with GPS coordinates');
+      } else {
+        document.getElementById('grievanceLocation').value = "Alandi Gram Panchayat, Sec-3 (18.618° N, 73.893° E)";
+        showToast('Target Gram Panchayat tagged successfully');
+      }
+    }
+
+    function handleGrievanceSubmit(e) {
+      e.preventDefault();
+      const issue = document.getElementById('issueType').value;
+      const loc = document.getElementById('grievanceLocation').value || "Indrayani River Basin (18.618° N, 73.893° E)";
+
+      if (window.Android && window.Android.reportGrievance) {
+        window.Android.reportGrievance(issue, loc);
+      }
+
+      // Prepend to Live Action feed
+      const feed = document.getElementById('grievanceTicketsFeed');
+      const card = document.createElement('div');
+      card.className = "border-l-4 border-teal-500 pl-2.5 py-1 bg-teal-50/40 rounded-r-lg space-y-0.5";
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <p class="font-bold text-stone-800">${issue}</p>
+          <span class="text-[10px] font-bold text-teal-700 bg-teal-100 px-1.5 py-0.2 rounded">Submitted</span>
+        </div>
+        <p class="text-[10px] text-teal-700 font-medium">${loc} • Auto-ticket dispatched to Municipal Officer</p>
+      `;
+      feed.prepend(card);
+
+      showToast('Grievance ticket dispatched to Municipal Health Officers!');
+      e.target.reset();
+      document.getElementById('sanitationPhotoPreviewImg').classList.add('hidden');
+      document.getElementById('sanitationPhotoLabel').innerText = "Tap to Take Photo of Dirty Spot";
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Mitra KYC Registration
+    // ──────────────────────────────────────────────────────────────────
+    function handleKYCSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('kycName').value;
+      const aadhar = document.getElementById('kycAadhaar').value;
+      const role = document.getElementById('kycRole').value;
+
+      if (window.Android && window.Android.submitKYC) {
+        window.Android.submitKYC(name, aadhar, role);
+      }
+
+      closeModal('kycModal');
+      document.getElementById('mitraStatus').innerText = "Verified Mitra";
+      document.getElementById('mitraStatus').parentElement.classList.add('bg-emerald-600', 'border-emerald-400');
+      showToast('KYC Approved! Real-time GPS stream activated for RTO tracking.');
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Auth & Profile Management
+    // ──────────────────────────────────────────────────────────────────
+    let currentUser = null;
+    let authToken = null;
+    let trackMode = 'own';
+
+    function openLoginOrProfile() {
+      if (authToken && currentUser) {
+        loadProfile();
+        openModal('profileModal');
+      } else {
+        openModal('loginModal');
+      }
+    }
+
+    function parseJsonSafe(str) {
+      try { return JSON.parse(str); } catch(e) { return null; }
+    }
+
+    function handleEmailLogin(e) {
+      if (e) e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      if (!email || !password) {
+        showToast('Please enter email and password');
+        return;
+      }
+      if (window.Android && window.Android.loginUser) {
+        const res = parseJsonSafe(window.Android.loginUser(email, password));
+        if (res && res.status === 'ok') {
+          authToken = res.token;
+          currentUser = res.user;
+          updateProfileUI();
+          closeModal('loginModal');
+          showToast('Welcome back, ' + (currentUser.name || 'Mitra'));
+        } else {
+          showToast(res && res.message ? res.message : 'Login failed');
+        }
+      } else {
+        showToast('Login bridge not available');
+      }
+    }
+
+    function handleGoogleLogin() {
+      if (window.Android && window.Android.loginWithGoogle) {
+        const res = parseJsonSafe(window.Android.loginWithGoogle());
+        if (res && res.status === 'ok') {
+          authToken = res.token;
+          currentUser = res.user;
+          updateProfileUI();
+          closeModal('loginModal');
+          showToast('Welcome, ' + (currentUser.name || 'Mitra'));
+        } else {
+          showToast(res && res.message ? res.message : 'Google login failed');
+        }
+      } else {
+        showToast('Google login bridge not available');
+      }
+    }
+
+    function handleLogout() {
+      if (window.Android && window.Android.logoutUser) {
+        window.Android.logoutUser();
+      }
+      authToken = null;
+      currentUser = null;
+      updateProfileUI();
+      closeModal('profileModal');
+      showToast('Logged out successfully');
+    }
+
+    function updateProfileUI() {
+      const label = document.getElementById('profileLabel');
+      const btn = document.getElementById('profileBtn');
+      if (currentUser) {
+        label.innerText = currentUser.name || 'Mitra';
+        btn.classList.add('bg-emerald-600', 'border-emerald-400');
+        btn.classList.remove('bg-white/20');
+      } else {
+        label.innerText = 'Login';
+        btn.classList.remove('bg-emerald-600', 'border-emerald-400');
+        btn.classList.add('bg-white/20');
+      }
+    }
+
+    function loadProfile() {
+      if (!authToken || !currentUser) return;
+      const container = document.getElementById('profileContent');
+      const kycStatus = currentUser.kycStatus || 'PENDING';
+      const kycBadge = kycStatus === 'VERIFIED'
+        ? '<span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">KYC Verified</span>'
+        : '<span class="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">KYC Pending</span>';
+
+      container.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-bold text-stone-900">${currentUser.name || 'Mitra'}</p>
+            <p class="text-[11px] text-stone-500">${currentUser.email || ''}</p>
+          </div>
+          ${kycBadge}
+        </div>
+        <div class="flex gap-2">
+          <button onclick="closeModal('profileModal'); openModal('kycModal')" class="flex-1 bg-saffron-600 text-white text-[11px] font-bold py-2 rounded-lg">Complete KYC</button>
+          <button onclick="handleLogout()" class="flex-1 bg-stone-200 text-stone-700 text-[11px] font-bold py-2 rounded-lg">Logout</button>
+        </div>
+        <div>
+          <p class="font-bold text-stone-800 mb-1">My Registered Devices</p>
+          <div id="myDevicesList" class="space-y-1.5">
+            <p class="text-[11px] text-stone-500">Loading devices...</p>
+          </div>
+          <button onclick="registerCurrentDevice()" class="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-2 rounded-lg">Register This Device</button>
+        </div>
+      `;
+      loadMyDevices();
+    }
+
+    function loadMyDevices() {
+      if (window.Android && window.Android.getMyDevices) {
+        const res = parseJsonSafe(window.Android.getMyDevices());
+        const list = document.getElementById('myDevicesList');
+        if (!list) return;
+        if (res && res.data && res.data.length > 0) {
+          list.innerHTML = res.data.map(d => `
+            <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+              <div>
+                <p class="font-bold text-stone-800 text-[11px]">${d.name || 'Device'}</p>
+                <p class="text-[10px] text-stone-500 font-mono">${d.imei || d.id}</p>
+              </div>
+              <span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">Active</span>
+            </div>
+          `).join('');
+        } else {
+          list.innerHTML = '<p class="text-[11px] text-stone-500">No devices registered yet</p>';
+        }
+      }
+    }
+
+    function registerCurrentDevice() {
+      if (window.Android && window.Android.registerCurrentDevice) {
+        const res = parseJsonSafe(window.Android.registerCurrentDevice());
+        if (res && res.device) {
+          showToast('Device registered successfully');
+          loadMyDevices();
+        } else {
+          showToast('Failed to register device');
+        }
+      }
+    }
+
+    function setTrackMode(mode) {
+      trackMode = mode;
+      const ownBtn = document.getElementById('trackModeOwn');
+      const otherBtn = document.getElementById('trackModeOther');
+      const ownSec = document.getElementById('ownDeviceSection');
+      const otherSec = document.getElementById('otherDeviceSection');
+
+      if (mode === 'own') {
+        ownBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition';
+        otherBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition';
+        ownSec.classList.remove('hidden');
+        otherSec.classList.add('hidden');
+      } else {
+        otherBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition';
+        ownBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition';
+        otherSec.classList.remove('hidden');
+        ownSec.classList.add('hidden');
+      }
+    }
+
+    function trackOtherMitraDevice() {
+      const email = document.getElementById('targetEmailInput').value.trim();
+      if (!email) {
+        showToast('Please enter the other Mitra\'s email');
+        return;
+      }
+      if (window.Android && window.Android.trackOtherMitraDevice) {
+        const res = parseJsonSafe(window.Android.trackOtherMitraDevice(email));
+        if (res && res.device) {
+          const resultBox = document.getElementById('crossTrackResult');
+          document.getElementById('crossTrackOwner').innerText = res.owner.name || email;
+          document.getElementById('crossTrackDevice').innerText = res.device.name || res.device.imei;
+          document.getElementById('crossTrackLoc').innerText = 'Last seen: ' + new Date(res.device.lastSeen).toLocaleString();
+          const badge = document.getElementById('crossTrackKycBadge');
+          if (res.owner.kycStatus === 'VERIFIED') {
+            badge.innerText = 'KYC Verified';
+            badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded';
+          } else {
+            badge.innerText = 'KYC Pending';
+            badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded';
+          }
+          resultBox.classList.remove('hidden');
+          showToast('Tracking device of ' + (res.owner.name || email));
+        } else {
+          showToast(res && res.message ? res.message : 'Device not found');
+        }
+      } else {
+        showToast('Tracking bridge not available');
+      }
+    }
+
+    // Auto-update time clock
+    setInterval(() => {
+      const now = new Date();
+      const timeElem = document.getElementById('timeStr');
+      if (timeElem) {
+        timeElem.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

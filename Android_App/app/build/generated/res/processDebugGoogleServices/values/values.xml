@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gcm_defaultSenderId" translatable="false">123456789012</string>
+    <string name="google_api_key" translatable="false">PLACEHOLDER_API_KEY</string>
+    <string name="google_app_id" translatable="false">1:123456789012:android:d41d8cd98f00b204e9800998ecf8427e</string>
+    <string name="google_crash_reporting_api_key" translatable="false">PLACEHOLDER_API_KEY</string>
+    <string name="google_storage_bucket" translatable="false">placeholder-project.appspot.com</string>
+    <string name="project_id" translatable="false">placeholder-project</string>
+</resources>

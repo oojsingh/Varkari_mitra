@@ -1,0 +1,25 @@
+R_DEF: Internal format may change without notice
+local
+color accent_blue
+color black
+color bypass_green
+color card_bg
+color diversion_orange
+color diversion_red
+color purple_500
+color purple_700
+color teal_200
+color text_dark
+color text_muted
+color white
+id progressBar
+id webView
+layout activity_main
+string app_name
+string gcm_defaultSenderId
+string google_api_key
+string google_app_id
+string google_crash_reporting_api_key
+string google_storage_bucket
+string project_id
+style Theme.GroupTracker

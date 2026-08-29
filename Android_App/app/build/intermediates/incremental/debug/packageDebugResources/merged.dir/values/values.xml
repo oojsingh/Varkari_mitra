@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent_blue">#1565C0</color>
+    <color name="black">#000000</color>
+    <color name="bypass_green">#2E7D32</color>
+    <color name="card_bg">#F1F5F9</color>
+    <color name="diversion_orange">#E65100</color>
+    <color name="diversion_red">#D32F2F</color>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="text_dark">#0F172A</color>
+    <color name="text_muted">#475569</color>
+    <color name="white">#FFFFFF</color>
+    <string name="app_name">Group Tracker</string>
+    <string name="gcm_defaultSenderId" translatable="false">123456789012</string>
+    <string name="google_api_key" translatable="false">PLACEHOLDER_API_KEY</string>
+    <string name="google_app_id" translatable="false">1:123456789012:android:d41d8cd98f00b204e9800998ecf8427e</string>
+    <string name="google_crash_reporting_api_key" translatable="false">PLACEHOLDER_API_KEY</string>
+    <string name="google_storage_bucket" translatable="false">placeholder-project.appspot.com</string>
+    <string name="project_id" translatable="false">placeholder-project</string>
+    <style name="Theme.GroupTracker" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#EA580C</item>
+        <item name="colorPrimaryVariant">#C2410C</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor">#C2410C</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
