@@ -23,6 +23,7 @@ const corsMiddleware = cors({
 });
 app.use(corsMiddleware);
 app.use(express.json());
+app.use('/admin', express.static(join(__dirname, 'admin')));
 
 app.get('/', (req, res) => res.json({ status: 'ok', message: 'Varithon backend API', docs: '/api' }));
 
