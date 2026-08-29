@@ -15,8 +15,6 @@ const corsMiddleware = allowedOrigin ? cors({ origin: allowedOrigin }) : cors();
 app.use(corsMiddleware);
 app.use(express.json());
 
-app.use('/admin', express.static(join(__dirname, 'public')));
-
 app.get('/', (req, res) => res.json({ status: 'ok', message: 'Varithon backend API', docs: '/api' }));
 
 function generateToken() {
