@@ -44,6 +44,8 @@ const PILGRIMAGE_SECTORS = [
   }
 ];
 
+import { api } from './api';
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,9 +53,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('vm_token');
     if (token) {
-      fetch('https://varkari-mitra.onrender.com/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(data => { if (data.status === 'ok') setUser(data.user); })
+      api.me().then(data => { if (data.status === 'ok') setUser(data.user); })
         .catch(() => localStorage.removeItem('vm_token'))
         .finally(() => setLoading(false));
     } else {

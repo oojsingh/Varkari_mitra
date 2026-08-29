@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CORS_ORIGIN
-        value: https://varithon-frontend.onrender.com
+        value: https://varithon-frontend.onrender.com,null
 
   - type: static
     name: varithon-frontend

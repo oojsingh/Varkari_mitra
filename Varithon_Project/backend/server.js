@@ -10,8 +10,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const allowedOrigin = process.env.CORS_ORIGIN || '';
-const corsMiddleware = allowedOrigin ? cors({ origin: allowedOrigin }) : cors();
+const corsOriginEnv = process.env.CORS_ORIGIN || '';
+const allowedOrigins = corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean);
+const corsMiddleware = cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+});
 app.use(corsMiddleware);
 app.use(express.json());
 
