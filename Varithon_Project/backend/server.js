@@ -477,6 +477,42 @@ app.get('/api/admin/all', async (req, res) => {
   });
 });
 
+const PALKHI_COLORS = {
+  dnyaneshwar: '#EA4335',
+  tukaram: '#FBBC05',
+  muktabai: '#34A853',
+  rukhmini: '#4285F4',
+  gajanan: '#0F9D58',
+  nivrutti: '#FF6F00',
+  sopan: '#A142F4'
+};
+
+app.get('/api/palkhi/list', async (req, res) => {
+  const result = await pool.query('SELECT DISTINCT palkhi_key, palkhi_name FROM palkhi_schedules ORDER BY palkhi_key');
+  const data = result.rows.map(r => ({ key: r.palkhi_key, name: r.palkhi_name, color: PALKHI_COLORS[r.palkhi_key] || '#1a73e8' }));
+  res.status(200).json({ status: 'ok', data });
+});
+
+app.get('/api/palkhi/:key', async (req, res) => {
+  const { key } = req.params;
+  const year = parseInt(req.query.year) || new Date().getFullYear();
+  const result = await pool.query('SELECT * FROM palkhi_schedules WHERE palkhi_key = $1 AND year = $2 ORDER BY day_number', [key, year]);
+  if (result.rows.length === 0) {
+    return res.status(404).json({ status: 'error', message: 'Palkhi schedule not found' });
+  }
+  const schedule = result.rows.map(r => ({
+    dayNumber: r.day_number,
+    locationName: r.location_name,
+    lat: parseFloat(r.lat),
+    lng: parseFloat(r.lng),
+    date: r.date.toISOString().split('T')[0]
+  }));
+  const palkhiName = result.rows[0].palkhi_name;
+  const day1Date = schedule[0].date;
+  const ashadhiEkadashiDate = schedule[schedule.length - 1].date;
+  res.status(200).json({ status: 'ok', data: { palkhiName, day1Date, ashadhiEkadashiDate, schedule } });
+});
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Varithon backend running on http://localhost:${PORT}`);
