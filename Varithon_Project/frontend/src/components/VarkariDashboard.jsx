@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import FunctionalMap from './FunctionalMap';
 
 export default function VarkariDashboard({ user, onLogout }) {
   const [location, setLocation] = useState(null);
@@ -8,6 +9,7 @@ export default function VarkariDashboard({ user, onLogout }) {
   const [newMember, setNewMember] = useState({ email: '', name: '', relation: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [selectedSector, setSelectedSector] = useState(null);
 
   const loadFamily = async () => {
     try {
@@ -76,6 +78,18 @@ export default function VarkariDashboard({ user, onLogout }) {
       {message && <div className="toast">{message}</div>}
 
       <div className="dash-grid">
+        <section className="card map-full">
+          <h3>🗺️ Live Palkhi Route Map</h3>
+          <div style={{ height: '400px', width: '100%' }}>
+            <FunctionalMap selectedSector={selectedSector} onSectorSelect={setSelectedSector} />
+          </div>
+          {selectedSector && (
+            <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+              <strong>{selectedSector.name}</strong> — Delay: +{selectedSector.delay} mins
+            </div>
+          )}
+        </section>
+
         <section className="card">
           <h3>📍 My Location</h3>
           <div className="location-controls">
