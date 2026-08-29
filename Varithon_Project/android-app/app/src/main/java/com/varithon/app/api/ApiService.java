@@ -13,7 +13,7 @@ import retrofit2.http.PUT;
 import retrofit2.http.Path;
 
 public interface ApiService {
-    String BASE_URL = "https://varithon-backend.onrender.com/api/";
+    String BASE_URL = "https://varkari-mitra.onrender.com/api/";
 
     @POST("auth/register")
     Call<AuthResponse> register(@Body User user);

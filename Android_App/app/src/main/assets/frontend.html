@@ -1324,7 +1324,7 @@
         reportedByRole: currentUser ? currentUser.role : 'varkari'
       };
 
-      fetch('https://varithon-backend.onrender.com/api/lost-child/report', {
+      fetch('https://varkari-mitra.onrender.com/api/lost-child/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1359,7 +1359,7 @@
 
     // Poll for active lost child alerts from backend
     setInterval(() => {
-      fetch('https://varithon-backend.onrender.com/api/lost-child/active')
+      fetch('https://varkari-mitra.onrender.com/api/lost-child/active')
         .then(res => res.json())
         .then(data => {
           if (data.status === 'ok' && data.data && data.data.length > 0) {

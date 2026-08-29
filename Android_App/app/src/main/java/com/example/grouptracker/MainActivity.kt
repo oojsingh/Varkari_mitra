@@ -60,7 +60,7 @@ private const val TRACKING_DOC = "anchors"
 private const val TRACKING_COLLECTION = "group_tracking"
 // IMPORTANT: Update this to your production backend URL
 // or your Laptop's IP (e.g., http://192.168.1.10:8080) for physical device testing.
-private const val BACKEND_BASE_URL = "https://varithon-backend.onrender.com"
+private const val BACKEND_BASE_URL = "https://varkari-mitra.onrender.com"
 private const val TAG = "VarithonApp"
 private const val SOS_CHANNEL_ID = "sos_alerts"
 private const val PREFS_NAME = "varithon_prefs"
