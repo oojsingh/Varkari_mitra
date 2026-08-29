@@ -46,6 +46,12 @@ export default function FunctionalMap({ selectedSector, onSectorSelect }) {
   const [year, setYear] = useState(new Date().getFullYear());
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [variRoadCoords, setVariRoadCoords] = useState([]);
+  const [vehicleOrigin, setVehicleOrigin] = useState('18.5020,73.9260');
+  const [vehicleDest, setVehicleDest] = useState('18.5089,73.9260');
+  const [vehicleRouteStatus, setVehicleRouteStatus] = useState('');
+  const [vehicleRouteLoading, setVehicleRouteLoading] = useState(false);
+  const vehicleRouteLayerRef = useRef(null);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -145,6 +151,7 @@ export default function FunctionalMap({ selectedSector, onSectorSelect }) {
       try {
         const roadCoords = await fetchOSRMRoute(coords);
         if (cancelled) return;
+        setVariRoadCoords(roadCoords);
         map.removeLayer(straightRoute);
         layersRef.current.polylines = layersRef.current.polylines.filter(l => l !== straightRoute);
         const roadRoute = L.polyline(roadCoords, {
@@ -164,6 +171,61 @@ export default function FunctionalMap({ selectedSector, onSectorSelect }) {
 
     return () => { cancelled = true; };
   }, [schedule, selectedPalkhi, palkhiList]);
+
+  const kmBetween = (a, b) => {
+    const R = 6371;
+    const dLat = (a[0] - b[0]) * Math.PI / 180;
+    const dLng = (a[1] - b[1]) * Math.PI / 180;
+    const x = Math.sin(dLat/2)**2 + Math.cos(a[0]*Math.PI/180) * Math.cos(b[0]*Math.PI/180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+  };
+
+  const checkVehicleRoute = async () => {
+    setVehicleRouteLoading(true);
+    setVehicleRouteStatus('');
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (vehicleRouteLayerRef.current) {
+      map.removeLayer(vehicleRouteLayerRef.current);
+      vehicleRouteLayerRef.current = null;
+    }
+
+    try {
+      const [oLat, oLng] = vehicleOrigin.split(',').map(Number);
+      const [dLat, dLng] = vehicleDest.split(',').map(Number);
+      if ([oLat, oLng, dLat, dLng].some(isNaN)) throw new Error('Invalid coordinates');
+
+      const roadCoords = await fetchOSRMRoute([[oLat, oLng], [dLat, dLng]]);
+      let obstructed = false;
+
+      if (variRoadCoords.length > 0) {
+        const step = Math.max(1, Math.floor(roadCoords.length / 40));
+        for (let i = 0; i < roadCoords.length; i += step) {
+          for (let j = 0; j < variRoadCoords.length; j += 15) {
+            if (kmBetween(roadCoords[i], variRoadCoords[j]) < 0.5) {
+              obstructed = true;
+              break;
+            }
+          }
+          if (obstructed) break;
+        }
+      }
+
+      const color = obstructed ? '#dc2626' : '#16a34a';
+      const polyline = L.polyline(roadCoords, {
+        color, weight: 6, opacity: 0.9, lineCap: 'round', lineJoin: 'round', dashArray: obstructed ? '6 4' : undefined,
+      }).addTo(map);
+      vehicleRouteLayerRef.current = polyline;
+      setVehicleRouteStatus(obstructed
+        ? '🚨 ROUTE OBSTRUCTED by Vari corridor. Use alternate bypass.'
+        : '✅ Route is clear of Vari procession.');
+    } catch (e) {
+      setVehicleRouteStatus('❌ Failed to compute route. Check coordinates.');
+    } finally {
+      setVehicleRouteLoading(false);
+    }
+  };
 
   const currentYear = useMemo(() => year, [year]);
 
@@ -194,7 +256,33 @@ export default function FunctionalMap({ selectedSector, onSectorSelect }) {
           </span>
         )}
       </div>
-      <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
+      <div style={{ padding: '8px 12px', background: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          placeholder="Origin lat,lng"
+          value={vehicleOrigin}
+          onChange={(e) => setVehicleOrigin(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '13px', width: '160px' }}
+        />
+        <input
+          placeholder="Dest lat,lng"
+          value={vehicleDest}
+          onChange={(e) => setVehicleDest(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '13px', width: '160px' }}
+        />
+        <button
+          onClick={checkVehicleRoute}
+          disabled={vehicleRouteLoading}
+          style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: '#1a73e8', color: '#fff', fontSize: '13px', cursor: 'pointer' }}
+        >
+          {vehicleRouteLoading ? 'Checking...' : 'Plan Emergency Route'}
+        </button>
+        {vehicleRouteStatus && (
+          <span style={{ fontSize: '12px', color: vehicleRouteStatus.includes('OBSTRUCTED') ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+            {vehicleRouteStatus}
+          </span>
+        )}
+      </div>
+      <div ref={mapRef} style={{ flex: 1, minHeight: 0, width: '100%' }} />
     </div>
   );
 }

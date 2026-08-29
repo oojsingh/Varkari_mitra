@@ -2,5 +2,9 @@
     {
         "merged": "com.example.grouptracker.app-merged_res-35:/layout_activity_main.xml.flat",
         "source": "com.example.grouptracker.app-main-37:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.grouptracker.app-merged_res-35:/xml_file_paths.xml.flat",
+        "source": "com.example.grouptracker.app-main-37:/xml/file_paths.xml"
     }
 ]

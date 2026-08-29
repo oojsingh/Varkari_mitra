@@ -568,6 +568,7 @@ com.example.grouptracker:style/Platform.ThemeOverlay.AppCompat.Dark = 0x7f10013d
 com.example.grouptracker:style/Base.ThemeOverlay.AppCompat.Light = 0x7f10007e
 com.example.grouptracker:style/Base.Theme.MaterialComponents.Light.Dialog.FixedSize = 0x7f100075
 com.example.grouptracker:style/Base.Theme.MaterialComponents.Light.Dialog = 0x7f100072
+com.example.grouptracker:xml/file_paths = 0x7f120000
 com.example.grouptracker:style/Base.Theme.MaterialComponents.Light.Bridge = 0x7f10006f
 com.example.grouptracker:style/Base.Theme.MaterialComponents.DialogWhenLarge = 0x7f10006d
 com.example.grouptracker:style/Base.Theme.MaterialComponents.Dialog.FixedSize = 0x7f10006b

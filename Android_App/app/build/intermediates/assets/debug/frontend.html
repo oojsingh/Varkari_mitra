@@ -63,9 +63,51 @@
       -webkit-backdrop-filter: blur(10px);
     }
     .leaflet-popup-content-wrapper {
-      border-radius: 12px;
+      background: #fff;
+      color: #333;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
       padding: 4px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .leaflet-popup-tip {
+      background: #fff;
+    }
+    .leaflet-popup-content {
+      margin: 10px 14px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .leaflet-control-zoom a {
+      background: #fff;
+      color: #333;
+      border: 1px solid #e0e0e0;
+      width: 32px;
+      height: 32px;
+      line-height: 30px;
+      font-size: 16px;
+    }
+    .leaflet-control-zoom a:hover {
+      background: #f5f5f5;
+    }
+    .leaflet-control-zoom {
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .leaflet-control-attribution {
+      background: rgba(255,255,255,0.9) !important;
+      color: #666 !important;
+      font-size: 10px;
+    }
+    .leaflet-control-attribution a {
+      color: #1a73e8 !important;
+    }
+    .google-maps-pin {
+      background: transparent;
+      border: none;
     }
     .pulse-ring {
       animation: pulse-animation 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
@@ -132,6 +174,25 @@
           <button onclick="filterMap('seva')" id="filter-seva" class="glassmorphism text-stone-800 text-xs px-3 py-1.5 rounded-full font-medium shadow whitespace-nowrap border border-emerald-200 active:scale-95 transition">
             <span data-key="filter_seva">🏠 Seva Rest Stops</span>
           </button>
+        </div>
+
+        <!-- Palkhi Route Selector -->
+        <div class="absolute top-16 left-3 right-3 z-20 glassmorphism rounded-xl p-2.5 shadow-lg border border-saffron-200">
+          <div class="flex gap-2 items-center">
+            <select id="palkhiSelect" onchange="loadPalkhiRoute()" class="flex-1 text-xs p-2 rounded-lg border border-stone-300 bg-white font-medium outline-none">
+              <option value="dnyaneshwar">Sant Dnyaneshwar Maharaj (Alandi → Pandharpur)</option>
+              <option value="tukaram">Sant Tukaram Maharaj (Dehu → Pandharpur)</option>
+              <option value="muktabai">Sant Muktabai (Muktainagar → Pandharpur)</option>
+              <option value="rukhmini">Rukhmini Devi (Kaundanyapur → Pandharpur)</option>
+              <option value="gajanan">Sant Gajanan Maharaj (Shegaon → Pandharpur)</option>
+              <option value="nivrutti">Sant Nivruttinath (Trimbakeshwar → Pandharpur)</option>
+              <option value="sopan">Sant Sopankaka (Saswad → Pandharpur)</option>
+            </select>
+            <input type="number" id="palkhiYear" value="2026" min="2020" max="2030" onchange="loadPalkhiRoute()" class="w-16 text-xs p-2 rounded-lg border border-stone-300 text-center font-bold" />
+          </div>
+          <div id="palkhiRouteInfo" class="text-[10px] text-stone-600 mt-1.5 font-medium hidden">
+            <span id="routeInfoText"></span>
+          </div>
         </div>
 
         <!-- Dynamic Leaflet Map Element -->
@@ -232,7 +293,7 @@
             
             <div class="flex items-center gap-2">
               <label class="flex-1 border-dashed border-2 border-stone-300 p-2.5 rounded-lg text-center cursor-pointer hover:border-rose-400 bg-stone-50 transition relative overflow-hidden">
-                <input type="file" accept="image/*" id="childPhotoInput" class="hidden" onchange="previewUpload(this, 'childPhotoLabel', 'childPhotoPreviewImg')" />
+                <input type="file" accept="image/*" capture="environment" id="childPhotoInput" class="hidden" onchange="previewUpload(this, 'childPhotoLabel', 'childPhotoPreviewImg')" />
                 <div id="childPhotoDefaultView" class="flex items-center justify-center gap-1 text-[11px] text-stone-600">
                   <i data-lucide="camera" class="w-4 h-4 text-rose-600"></i>
                   <span id="childPhotoLabel">Snap/Upload Photo</span>
@@ -259,59 +320,6 @@
           </div>
         </div>
 
-        <!-- Device Anti-Theft Protocol -->
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
-              <i data-lucide="smartphone" class="w-4 h-4 text-saffron-600"></i>
-              <span data-key="anti_theft_title">Community Anti-Theft Mesh Tracker</span>
-            </h3>
-            <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold" data-key="network_watch_badge">Network Watch</span>
-          </div>
-          <p class="text-xs text-stone-600 mb-2.5" data-key="anti_theft_desc">Lost your mobile in crowd? Raise a lookup alert from another registered Mitra's device.</p>
-          
-          <!-- Tracking Mode Toggle -->
-          <div class="flex gap-2 mb-2">
-            <button type="button" onclick="setTrackMode('own')" id="trackModeOwn" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition">My Devices</button>
-            <button type="button" onclick="setTrackMode('other')" id="trackModeOther" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition">Track Another Mitra</button>
-          </div>
-
-          <!-- Own Device Tracking -->
-          <div id="ownDeviceSection" class="space-y-2">
-            <div class="flex gap-2">
-              <input type="text" id="imeiInput" placeholder="Lost Device IMEI / Registered Phone #" class="flex-1 text-xs p-2.5 rounded-lg border border-stone-300 outline-none focus:ring-2 focus:ring-saffron-500" />
-              <button onclick="trackStolenDevice()" class="bg-saffron-600 hover:bg-saffron-700 active:scale-95 text-white text-xs px-3.5 py-2.5 rounded-lg font-bold transition shadow-sm whitespace-nowrap">
-                <span data-key="activate_track_btn">Activate Track</span>
-              </button>
-            </div>
-            <div id="stolenTrackResult" class="hidden mt-2.5 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-stone-800 space-y-1">
-              <div class="flex items-center justify-between font-bold text-amber-900">
-                <span id="trackResultTitle">📡 Tracking Signal Active</span>
-                <span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">Signal 88%</span>
-              </div>
-              <p class="text-[11px] text-stone-600" id="trackResultDesc">Device pinged near Hadapsar Gadital Sector. 4 nearby Mitras notified to look out.</p>
-            </div>
-          </div>
-
-          <!-- Cross-User Tracking -->
-          <div id="otherDeviceSection" class="hidden space-y-2">
-            <p class="text-[11px] text-stone-600">Enter another Varimitra's login email to track their registered lost device.</p>
-            <div class="flex gap-2">
-              <input type="email" id="targetEmailInput" placeholder="mitra@example.com" class="flex-1 text-xs p-2.5 rounded-lg border border-stone-300 outline-none focus:ring-2 focus:ring-saffron-500" />
-              <button onclick="trackOtherMitraDevice()" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs px-3.5 py-2.5 rounded-lg font-bold transition shadow-sm whitespace-nowrap">
-                Find Device
-              </button>
-            </div>
-            <div id="crossTrackResult" class="hidden mt-2.5 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-stone-800 space-y-1">
-              <div class="flex items-center justify-between font-bold text-emerald-900">
-                <span id="crossTrackTitle">📡 Cross-User Track Active</span>
-                <span id="crossTrackKycBadge" class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">KYC Verified</span>
-              </div>
-              <p class="text-[11px] text-stone-600" id="crossTrackDesc">Owner: <span id="crossTrackOwner">Rahyanath Maharaj</span> • Device: <span id="crossTrackDevice">Samsung S23</span></p>
-              <p class="text-[11px] text-stone-500" id="crossTrackLoc">Last seen: Alandi Gram Panchayat, Sec-3</p>
-            </div>
-          </div>
-        </div>
 
         <!-- Emergency Corridors & Nearby Hospitals -->
         <div class="bg-white rounded-xl p-4 shadow-sm border border-stone-200">
@@ -769,10 +777,6 @@
         police_push_badge: "Police Push",
         lost_child_desc: "Upload child photo and instant GPS tag to alert all nearby registered Mitras and local Police control room.",
         lost_child_submit: "Publish Alert to Police & Mitra Mesh",
-        anti_theft_title: "Community Anti-Theft Mesh Tracker",
-        network_watch_badge: "Network Watch",
-        anti_theft_desc: "Lost your mobile in crowd? Raise a lookup alert from another registered Mitra's device.",
-        activate_track_btn: "Activate Track",
         medical_posts_title: "Nearest Medical Posts & Ambulance Paths",
         seva_title: "सेवा नेटवर्क (Seva Network)",
         seva_subtitle: "Free Food (Annadaan), Water & Lodging verified by Mitras",
@@ -815,10 +819,6 @@
         police_push_badge: "पोलीस नियंत्रण",
         lost_child_desc: "मुलाचा फोटो आणि थेट GPS लोकेशन अपलोड करा; जवळच्या सर्व मित्रांना व पोलिसांना त्वरित अलर्ट पाठवला जाईल.",
         lost_child_submit: "पोलीस व मित्र नेटवर्कवर अलर्ट पाठवा",
-        anti_theft_title: "चोरीविरोधी नेटवर्क ट्रॅकर",
-        network_watch_badge: "नेटवर्क वॉच",
-        anti_theft_desc: "गर्दीत मोबाईल हरवला? इतर मित्रांच्या फोनवरून तात्काळ ट्रॅकिंग सुरू करा.",
-        activate_track_btn: "शोध सुरू करा",
         medical_posts_title: "जवळची वैद्यकीय पथके व रुग्णवाहिका मार्ग",
         seva_title: "सेवा नेटवर्क (अन्नदान व मुक्काम)",
         seva_subtitle: "वारकऱ्यांसाठी मोफत अन्नदान, पाणी व मुक्काम सोय",
@@ -928,36 +928,147 @@
     // Leaflet Real-time Map & Route Engine
     // ──────────────────────────────────────────────────────────────────
     const map = L.map('map', { zoomControl: false }).setView([18.5204, 73.8700], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap contributors © CARTO'
     }).addTo(map);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Custom Map Marker Icon Builder
+    // Custom Google Maps-style Pin Icon Builder
     const createCustomIcon = (bgColor, iconText) => L.divIcon({
-      html: `<div style="background-color: ${bgColor}; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; border: 2.5px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.35); font-size: 15px;">${iconText}</div>`,
-      className: '',
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
+      html: `<svg width="32" height="44" viewBox="0 0 36 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 0C8.06 0 0 8.06 0 18C0 31.5 18 48 18 48C18 48 36 31.5 36 18C36 8.06 27.94 0 18 0Z" fill="${bgColor}"/><circle cx="18" cy="17" r="7" fill="white"/><text x="18" y="21" text-anchor="middle" font-size="10" font-weight="bold" fill="${bgColor}" font-family="sans-serif">${iconText}</text></svg>`,
+      className: 'google-maps-pin',
+      iconSize: [32, 44],
+      iconAnchor: [16, 44],
+      popupAnchor: [0, -40]
     });
 
-    // Palkhi Procession Trail & Route Path
-    const palkhiRouteCoords = [
-      [18.6186, 73.8936], // Alandi
-      [18.5700, 73.8800], // Vishrantwadi
-      [18.5300, 73.8750], // Pune Station / Sangamwadi
-      [18.5100, 73.8650], // Nana Peth
-      [18.5020, 73.9260], // Hadapsar Gadital
-      [18.4600, 73.9600], // Phursungi
-      [18.3900, 74.0050], // Dive Ghat
-      [18.3450, 74.0298]  // Saswad
-    ];
+    function createStopIcon() {
+      return L.divIcon({
+        className: 'schedule-stop',
+        html: `<div style="width:12px;height:12px;background:#fff;border:3px solid #1a73e8;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+      });
+    }
 
-    const routePolyline = L.polyline(palkhiRouteCoords, {
-      color: '#ea580c',
-      weight: 5,
-      opacity: 0.85,
-      dashArray: '8, 8'
-    }).addTo(map);
+    // Embedded Palkhi Schedule Data
+    const ASHADHI_EKADASHI_DATES = {
+      2024: "2024-07-17", 2025: "2025-07-06", 2026: "2026-06-25",
+      2027: "2027-07-14", 2028: "2028-07-03", 2029: "2029-07-21", 2030: "2030-07-10"
+    };
+    const PALKHI_CONFIG = {
+      dnyaneshwar: {
+        name: "Sant Dnyaneshwar Maharaj Palkhi", startPoint: "Alandi", daysBeforeEkadashi: 18, color: "#EA4335",
+        halts: [
+          {day:1,name:"Alandi",lat:18.6756,lng:73.8967},{day:2,name:"Pune (Bhavani Peth)",lat:18.5074,lng:73.8677},{day:3,name:"Pune (Bhavani Peth)",lat:18.5074,lng:73.8677},{day:4,name:"Saswad",lat:18.3439,lng:74.0305},{day:5,name:"Saswad",lat:18.3439,lng:74.0305},{day:6,name:"Jejuri",lat:18.2755,lng:74.1601},{day:7,name:"Valhe",lat:18.1748,lng:74.1565},{day:8,name:"Lonand",lat:17.9546,lng:74.1866},{day:9,name:"Lonand",lat:17.9546,lng:74.1866},{day:10,name:"Taradgaon",lat:17.9625,lng:74.2756},{day:11,name:"Phaltan",lat:17.9866,lng:74.4338},{day:12,name:"Barad",lat:17.9157,lng:74.6147},{day:13,name:"Natepute",lat:17.9042,lng:74.7708},{day:14,name:"Malshiras",lat:17.8427,lng:74.9208},{day:15,name:"Velapur",lat:17.7562,lng:75.0506},{day:16,name:"Bhandishegaon",lat:17.7126,lng:75.1843},{day:17,name:"Wakhari",lat:17.6974,lng:75.2759},{day:18,name:"Pandharpur",lat:17.6775,lng:75.3278}
+        ]
+      },
+      tukaram: {
+        name: "Sant Tukaram Maharaj Palkhi", startPoint: "Dehu", daysBeforeEkadashi: 19, color: "#FBBC05",
+        halts: [
+          {day:1,name:"Dehu",lat:18.7188,lng:73.7699},{day:2,name:"Akurdi",lat:18.6496,lng:73.7707},{day:3,name:"Pune (Nana Peth)",lat:18.5158,lng:73.8638},{day:4,name:"Pune (Nana Peth)",lat:18.5158,lng:73.8638},{day:5,name:"Loni Kalbhor",lat:18.4892,lng:74.0208},{day:6,name:"Yavat",lat:18.4682,lng:74.2882},{day:7,name:"Varvand",lat:18.3976,lng:74.4079},{day:8,name:"Undwadi Gavalyachi",lat:18.2892,lng:74.5012},{day:9,name:"Baramati",lat:18.1517,lng:74.5772},{day:10,name:"Sansar",lat:18.0694,lng:74.7567},{day:11,name:"Anthurne",lat:18.0435,lng:74.8845},{day:12,name:"Nimgaon Ketki",lat:18.0573,lng:74.9654},{day:13,name:"Indapur",lat:18.1158,lng:75.0345},{day:14,name:"Sarati",lat:17.9942,lng:75.0682},{day:15,name:"Akluj",lat:17.8864,lng:75.0217},{day:16,name:"Borgaon",lat:17.7845,lng:75.1412},{day:17,name:"Pirachi Kuroli",lat:17.7289,lng:75.2215},{day:18,name:"Wakhari",lat:17.6974,lng:75.2759},{day:19,name:"Pandharpur",lat:17.6775,lng:75.3278}
+        ]
+      },
+      muktabai: {
+        name: "Sant Muktabai Palkhi", startPoint: "Muktainagar (Kothali)", daysBeforeEkadashi: 33, color: "#34A853",
+        halts: [
+          {day:1,name:"Muktainagar (Kothali)",lat:21.0536,lng:76.0463},{day:2,name:"Bhusawal",lat:21.0455,lng:75.8011},{day:4,name:"Jalgaon",lat:21.0077,lng:75.5626},{day:7,name:"Pachora",lat:20.6698,lng:75.3524},{day:10,name:"Chalisgaon",lat:20.4619,lng:74.9984},{day:13,name:"Nandgaon",lat:20.3106,lng:74.6586},{day:15,name:"Yeola",lat:20.0384,lng:74.4883},{day:17,name:"Kopargaon",lat:19.8872,lng:74.4756},{day:20,name:"Rahuri",lat:19.3900,lng:74.6517},{day:22,name:"Ahmednagar",lat:19.0952,lng:74.7496},{day:26,name:"Karmala",lat:18.4060,lng:75.2014},{day:29,name:"Kurduwadi",lat:18.0833,lng:75.4313},{day:31,name:"Bhandishegaon",lat:17.7126,lng:75.1843},{day:32,name:"Wakhari",lat:17.6974,lng:75.2759},{day:33,name:"Pandharpur",lat:17.6775,lng:75.3278}
+        ]
+      },
+      rukhmini: {
+        name: "Rukhmini Devi Palkhi", startPoint: "Kaundanyapur", daysBeforeEkadashi: 30, color: "#4285F4",
+        halts: [
+          {day:1,name:"Kaundanyapur",lat:20.9150,lng:78.1065},{day:2,name:"Kurha",lat:20.8403,lng:78.0264},{day:4,name:"Pulgaon",lat:20.7302,lng:78.3243},{day:6,name:"Wardha",lat:20.7453,lng:78.6022},{day:10,name:"Yavatmal",lat:20.3888,lng:78.1204},{day:14,name:"Umarkhed",lat:19.5960,lng:77.6974},{day:17,name:"Hingoli",lat:19.7155,lng:77.1471},{day:20,name:"Parbhani",lat:19.2644,lng:76.7725},{day:23,name:"Majalgaon",lat:19.1554,lng:76.2230},{day:25,name:"Beed",lat:18.9901,lng:75.7531},{day:27,name:"Kalamb",lat:18.0436,lng:75.9220},{day:28,name:"Kurduwadi",lat:18.0833,lng:75.4313},{day:29,name:"Wakhari",lat:17.6974,lng:75.2759},{day:30,name:"Pandharpur",lat:17.6775,lng:75.3278}
+        ]
+      },
+      gajanan: {
+        name: "Sant Gajanan Maharaj Palkhi", startPoint: "Shegaon", daysBeforeEkadashi: 33, color: "#0F9D58",
+        halts: [
+          {day:1,name:"Shegaon",lat:20.7937,lng:76.6946},{day:4,name:"Akola",lat:20.7059,lng:77.0019},{day:10,name:"Risod",lat:19.9749,lng:76.7766},{day:15,name:"Parbhani",lat:19.2644,lng:76.7725},{day:19,name:"Parali Vaijaynath",lat:18.8475,lng:76.3197},{day:26,name:"Tuljapur",lat:18.0131,lng:76.0747},{day:29,name:"Solapur",lat:17.6599,lng:75.9064},{day:33,name:"Pandharpur",lat:17.6775,lng:75.3278}
+        ]
+      },
+      nivrutti: {
+        name: "Sant Nivruttinath Maharaj Palkhi", startPoint: "Trimbakeshwar", daysBeforeEkadashi: 27, color: "#FF6F00",
+        halts: [
+          {day:1,name:"Trimbakeshwar",lat:19.9328,lng:73.5312},{day:3,name:"Nashik (Panchavati)",lat:20.0110,lng:73.7902},{day:8,name:"Sinnar",lat:19.8459,lng:74.0013},{day:12,name:"Sangamner",lat:19.5761,lng:74.2057},{day:15,name:"Ahmednagar",lat:19.0952,lng:74.7496},{day:24,name:"Karmala",lat:18.4060,lng:75.2014},{day:26,name:"Wakhari",lat:17.6974,lng:75.2759},{day:27,name:"Pandharpur",lat:17.6775,lng:75.3278}
+        ]
+      },
+      sopan: {
+        name: "Sant Sopankaka Palkhi", startPoint: "Saswad", daysBeforeEkadashi: 18, color: "#A142F4",
+        halts: [
+          {day:1,name:"Saswad",lat:18.3439,lng:74.0305},{day:3,name:"Nira",lat:18.1130,lng:74.2155},{day:7,name:"Baramati",lat:18.1517,lng:74.5772},{day:10,name:"Akluj",lat:17.8864,lng:75.0217},{day:13,name:"Velapur",lat:17.7562,lng:75.0506},{day:17,name:"Wakhari",lat:17.6974,lng:75.2759},{day:18,name:"Pandharpur",lat:17.6775,lng:75.3278}
+        ]
+      }
+    };
+
+    let scheduleLayers = { polylines: [], markers: [], stops: [] };
+
+    function getPalkhiSchedule(palkhiKey, year) {
+      const ekadashiStr = ASHADHI_EKADASHI_DATES[year];
+      if (!ekadashiStr) return null;
+      const palkhi = PALKHI_CONFIG[palkhiKey];
+      if (!palkhi) return null;
+      const ekadashiDate = new Date(ekadashiStr);
+      const day1Date = new Date(ekadashiDate);
+      day1Date.setDate(day1Date.getDate() - (palkhi.daysBeforeEkadashi - 1));
+      const schedule = palkhi.halts.map(h => {
+        const d = new Date(day1Date);
+        d.setDate(d.getDate() + (h.day - 1));
+        return { dayNumber: h.day, locationName: h.name, lat: h.lat, lng: h.lng, date: d.toISOString().split("T")[0] };
+      });
+      return { year, palkhiName: palkhi.name, ashadhiEkadashiDate: ekadashiStr, day1Date: day1Date.toISOString().split("T")[0], schedule, color: palkhi.color };
+    }
+
+    function clearScheduleLayers() {
+      scheduleLayers.polylines.forEach(l => map.removeLayer(l));
+      scheduleLayers.markers.forEach(m => map.removeLayer(m));
+      scheduleLayers.stops.forEach(s => map.removeLayer(s));
+      scheduleLayers = { polylines: [], markers: [], stops: [] };
+    }
+
+    function loadPalkhiRoute() {
+      const key = document.getElementById('palkhiSelect').value;
+      const yr = parseInt(document.getElementById('palkhiYear').value) || 2026;
+      const data = getPalkhiSchedule(key, yr);
+      const info = document.getElementById('palkhiRouteInfo');
+      const infoText = document.getElementById('routeInfoText');
+      clearScheduleLayers();
+      if (!data) { info.classList.add('hidden'); return; }
+      info.classList.remove('hidden');
+      infoText.innerHTML = `<strong>${data.palkhiName}</strong> &nbsp;|&nbsp; 📅 ${data.day1Date} → ${data.ashadhiEkadashiDate} &nbsp;|&nbsp; ${data.schedule.length} stops`;
+      const coords = data.schedule.map(s => [s.lat, s.lng]);
+      const route = L.polyline(coords, { color: data.color, weight: 5, opacity: 0.85, dashArray: '8 6', lineCap: 'round', lineJoin: 'round' }).addTo(map);
+      scheduleLayers.polylines.push(route);
+      data.schedule.forEach(stop => {
+        const isPandharpur = stop.locationName.toLowerCase().includes('pandharpur');
+        const marker = L.marker([stop.lat, stop.lng], { icon: isPandharpur ? createCustomIcon(data.color, 'P') : createStopIcon() }).addTo(map);
+        const dateObj = new Date(stop.date + 'T00:00:00');
+        const dateStr = dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        marker.bindPopup(`<strong style="color:#333;font-size:13px;">Day ${stop.dayNumber} — ${stop.locationName}</strong><br><span style="color:#666;font-size:12px;">📅 ${dateStr}</span><br><span style="color:#888;font-size:11px;">${data.palkhiName}</span>`);
+        scheduleLayers.markers.push(marker);
+        if (!isPandharpur) {
+          const dot = L.circleMarker([stop.lat, stop.lng], { radius: 4, color: data.color, fillColor: '#fff', fillOpacity: 1, weight: 2 }).addTo(map);
+          scheduleLayers.stops.push(dot);
+        }
+      });
+      map.fitBounds(route.getBounds(), { padding: [40, 40], maxZoom: 12 });
+
+      const osrmCoords = coords.map(c => `${c[1]},${c[0]}`).join(';');
+      fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`)
+        .then(r => r.ok ? r.json() : Promise.reject('OSRM request failed'))
+        .then(osrmData => {
+          if (osrmData.routes && osrmData.routes.length > 0) {
+            const roadCoords = osrmData.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            map.removeLayer(route);
+            scheduleLayers.polylines = scheduleLayers.polylines.filter(l => l !== route);
+            const roadRoute = L.polyline(roadCoords, { color: data.color, weight: 5, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+            scheduleLayers.polylines.push(roadRoute);
+          }
+        })
+        .catch(e => console.warn('OSRM routing failed, using straight-line fallback:', e));
+    }
+
+    loadPalkhiRoute();
 
     // Ambulance Green Corridor Path
     const ambulanceCorridorCoords = [
@@ -1081,6 +1192,17 @@
     }
 
     function navToLocation(lat, lng, label) {
+      const head = pointsData.find(p => p.id === 'head');
+      if (head && head.lat && head.lng) {
+        const R = 6371;
+        const dLat = (lat - head.lat) * Math.PI / 180;
+        const dLng = (lng - head.lng) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(head.lat*Math.PI/180) * Math.cos(lat*Math.PI/180) * Math.sin(dLng/2)**2;
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        if (dist < 5) {
+          showToast('⚠️ Destination is within 5km of active Vari route. Expect diversion delays.');
+        }
+      }
       if (window.Android && window.Android.openMapRoute) {
         window.Android.openMapRoute(lat, lng);
       } else {
@@ -1193,6 +1315,21 @@
         window.Android.reportLostChild(name, attire, gps);
       }
 
+      // Also send to backend for control room visibility
+      const payload = {
+        childName: name,
+        description: attire,
+        lastSeenLocation: gps,
+        reportedBy: currentUser ? currentUser.name : 'Anonymous',
+        reportedByRole: currentUser ? currentUser.role : 'varkari'
+      };
+
+      fetch('http://10.0.2.2:8080/api/lost-child/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error('Lost child backend report failed:', err));
+
       // Add to broadcast feed
       const feed = document.getElementById('missingChildrenFeed');
       const card = document.createElement('div');
@@ -1220,24 +1357,39 @@
       document.getElementById('childPhotoLabel').innerText = "Snap/Upload Photo";
     }
 
-    function trackStolenDevice() {
-      const imei = document.getElementById('imeiInput').value.trim();
-      if (!imei) {
-        showToast('Please enter IMEI or registered phone number.');
-        return;
-      }
+    // Poll for active lost child alerts from backend
+    setInterval(() => {
+      fetch('http://10.0.2.2:8080/api/lost-child/active')
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'ok' && data.data && data.data.length > 0) {
+            const feed = document.getElementById('missingChildrenFeed');
+            if (feed) {
+              feed.innerHTML = '';
+              data.data.forEach(alert => {
+                const card = document.createElement('div');
+                card.className = "p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs space-y-1.5 shadow-sm";
+                card.innerHTML = `
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <span class="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">${alert.status || 'ACTIVE'}</span>
+                      <h5 class="font-bold text-stone-900 text-xs mt-1">👶 ${alert.childName || 'Unknown Child'} ${alert.age ? '(' + alert.age + ' yrs)' : ''}</h5>
+                      <p class="text-[11px] text-stone-600">${alert.description || alert.issueType || ''}</p>
+                    </div>
+                    <span class="text-[10px] text-rose-700 font-mono font-bold">${new Date(alert.receivedAt).toLocaleTimeString()}</span>
+                  </div>
+                  <p class="text-[10px] text-stone-500 font-mono">📍 ${alert.lastSeenLocation || 'Location unknown'}</p>
+                  <p class="text-[10px] text-stone-500">Contact: ${alert.contactNumber || 'N/A'} • Reported by: ${alert.reportedBy}</p>
+                `;
+                feed.prepend(card);
+              });
+            }
+          }
+        })
+        .catch(() => {});
+    }, 5000);
 
-      if (window.Android && window.Android.trackStolenDevice) {
-        window.Android.trackStolenDevice(imei);
-      }
-
-      const resultBox = document.getElementById('stolenTrackResult');
-      document.getElementById('trackResultTitle').innerText = `📡 Mesh Tracking: #${imei}`;
-      document.getElementById('trackResultDesc').innerText = `Device signal detected near Hadapsar Gadital Sector. 4 nearby Mitras alerted.`;
-      resultBox.classList.remove('hidden');
-      showToast(`Anti-theft protocol activated for #${imei}`);
-    }
-
+    
     // ──────────────────────────────────────────────────────────────────
     // Seva Network Handlers
     // ──────────────────────────────────────────────────────────────────
@@ -1527,57 +1679,8 @@
       }
     }
 
-    function setTrackMode(mode) {
-      trackMode = mode;
-      const ownBtn = document.getElementById('trackModeOwn');
-      const otherBtn = document.getElementById('trackModeOther');
-      const ownSec = document.getElementById('ownDeviceSection');
-      const otherSec = document.getElementById('otherDeviceSection');
-
-      if (mode === 'own') {
-        ownBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition';
-        otherBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition';
-        ownSec.classList.remove('hidden');
-        otherSec.classList.add('hidden');
-      } else {
-        otherBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-saffron-600 bg-saffron-600 text-white transition';
-        ownBtn.className = 'flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 transition';
-        otherSec.classList.remove('hidden');
-        ownSec.classList.add('hidden');
-      }
-    }
-
-    function trackOtherMitraDevice() {
-      const email = document.getElementById('targetEmailInput').value.trim();
-      if (!email) {
-        showToast('Please enter the other Mitra\'s email');
-        return;
-      }
-      if (window.Android && window.Android.trackOtherMitraDevice) {
-        const res = parseJsonSafe(window.Android.trackOtherMitraDevice(email));
-        if (res && res.device) {
-          const resultBox = document.getElementById('crossTrackResult');
-          document.getElementById('crossTrackOwner').innerText = res.owner.name || email;
-          document.getElementById('crossTrackDevice').innerText = res.device.name || res.device.imei;
-          document.getElementById('crossTrackLoc').innerText = 'Last seen: ' + new Date(res.device.lastSeen).toLocaleString();
-          const badge = document.getElementById('crossTrackKycBadge');
-          if (res.owner.kycStatus === 'VERIFIED') {
-            badge.innerText = 'KYC Verified';
-            badge.className = 'text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded';
-          } else {
-            badge.innerText = 'KYC Pending';
-            badge.className = 'text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded';
-          }
-          resultBox.classList.remove('hidden');
-          showToast('Tracking device of ' + (res.owner.name || email));
-        } else {
-          showToast(res && res.message ? res.message : 'Device not found');
-        }
-      } else {
-        showToast('Tracking bridge not available');
-      }
-    }
-
+    
+    
     // Auto-update time clock
     setInterval(() => {
       const now = new Date();
@@ -1589,3 +1692,6 @@
   </script>
 </body>
 </html>
+
+
+

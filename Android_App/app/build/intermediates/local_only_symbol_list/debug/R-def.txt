@@ -23,3 +23,4 @@ string google_crash_reporting_api_key
 string google_storage_bucket
 string project_id
 style Theme.GroupTracker
+xml file_paths

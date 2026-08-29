@@ -84,6 +84,8 @@ class MainActivity : AppCompatActivity() {
     private var lastKnownLocation: Location? = null
     private var authToken: String? = null
     private var currentUserJson: String? = null
+    private var currentVariLatitude: Double = 18.5020
+    private var currentVariLongitude: Double = 73.9260
 
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var googleSignInLauncher: ActivityResultLauncher<Intent>
@@ -538,6 +540,9 @@ class MainActivity : AppCompatActivity() {
                     val bLat = snapshot.getDouble("leaderB_lat") ?: 18.4600
                     val bLng = snapshot.getDouble("leaderB_lng") ?: 73.9600
 
+                    currentVariLatitude = aLat
+                    currentVariLongitude = aLng
+
                     val results = FloatArray(1)
                     Location.distanceBetween(aLat, aLng, bLat, bLng, results)
                     val distanceMeters = results[0]
@@ -672,6 +677,12 @@ class MainActivity : AppCompatActivity() {
         fun openMapRoute(lat: Double, lng: Double) {
             runOnUiThread {
                 try {
+                    val blocked = trafficDiversionManager.isLocationBlockedByVari(lat, lng, currentVariLatitude, currentVariLongitude)
+                    if (blocked != null) {
+                        Toast.makeText(this@MainActivity,
+                            "⚠️ Route blocked by Vari procession near ${blocked.sector.name}. Alternate: ${blocked.sector.alternateBypassRoute}",
+                            Toast.LENGTH_LONG).show()
+                    }
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$lat,$lng?q=$lat,$lng(Destination)"))
                     startActivity(intent)
                 } catch (e: Exception) {

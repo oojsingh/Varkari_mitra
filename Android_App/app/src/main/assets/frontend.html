@@ -1192,6 +1192,17 @@
     }
 
     function navToLocation(lat, lng, label) {
+      const head = pointsData.find(p => p.id === 'head');
+      if (head && head.lat && head.lng) {
+        const R = 6371;
+        const dLat = (lat - head.lat) * Math.PI / 180;
+        const dLng = (lng - head.lng) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(head.lat*Math.PI/180) * Math.cos(lat*Math.PI/180) * Math.sin(dLng/2)**2;
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        if (dist < 5) {
+          showToast('⚠️ Destination is within 5km of active Vari route. Expect diversion delays.');
+        }
+      }
       if (window.Android && window.Android.openMapRoute) {
         window.Android.openMapRoute(lat, lng);
       } else {

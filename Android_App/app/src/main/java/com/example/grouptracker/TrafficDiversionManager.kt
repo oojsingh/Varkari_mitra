@@ -243,6 +243,16 @@ class TrafficDiversionManager {
             }
     }
 
+    fun isLocationBlockedByVari(lat: Double, lng: Double, variLat: Double, variLng: Double): BlockedLocationResult? {
+        val status = evaluateDiversion(variLat, variLng)
+        if (!status.isDiversionActive || status.sector == null) return null
+
+        val distToLoc = calculateDistanceKm(lat, lng, status.sector.latitude, status.sector.longitude)
+        return if (distToLoc <= status.sector.radiusKm) {
+            BlockedLocationResult(true, status.sector, distToLoc)
+        } else null
+    }
+
     fun calculateDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val results = FloatArray(1)
         Location.distanceBetween(lat1, lon1, lat2, lon2, results)

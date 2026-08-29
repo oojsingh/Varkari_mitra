@@ -49,6 +49,12 @@ data class CommuterRouteOption(
     val normalTravelMinutes: Int
 )
 
+data class BlockedLocationResult(
+    val isBlocked: Boolean,
+    val sector: PilgrimageSector,
+    val distanceToSectorKm: Double
+)
+
 data class RouteCheckResult(
     val isBlocked: Boolean,
     val routeName: String,
