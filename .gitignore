@@ -1,7 +1,11 @@
 # Android build artifacts
 Android_App/app/build/
 Android_App/.gradle/
+Android_App/.artifacts/
 .gradle/
+
+# Android local properties
+local.properties
 
 # Android Studio / IntelliJ
 .idea/
