@@ -31,6 +31,45 @@ app.use('/admin', express.static(join(__dirname, 'admin')));
 
 app.get('/', (req, res) => res.json({ status: 'ok', message: 'Varithon backend API', docs: '/api' }));
 
+app.get('/api', (req, res) => {
+  const routes = [
+    { method: 'POST', path: '/api/auth/register', desc: 'Register new user' },
+    { method: 'POST', path: '/api/auth/login', desc: 'Login with email/password' },
+    { method: 'POST', path: '/api/auth/google', desc: 'Google OAuth login' },
+    { method: 'GET', path: '/api/auth/me', desc: 'Get current user profile' },
+    { method: 'POST', path: '/api/kyc/submit', desc: 'Submit KYC details' },
+    { method: 'GET', path: '/api/kyc/status', desc: 'Get KYC status' },
+    { method: 'POST', path: '/api/kyc/ekyc', desc: 'eKYC for Varkari Mitra' },
+    { method: 'POST', path: '/api/varkari/location', desc: 'Update varkari location' },
+    { method: 'PUT', path: '/api/varkari/sharing', desc: 'Toggle location sharing' },
+    { method: 'POST', path: '/api/family/add', desc: 'Add family member' },
+    { method: 'GET', path: '/api/family/mine', desc: 'List my family members' },
+    { method: 'GET', path: '/api/family/track/:varkariId', desc: 'Track varkari location' },
+    { method: 'POST', path: '/api/sevas/create', desc: 'Create seva listing' },
+    { method: 'GET', path: '/api/sevas', desc: 'List all sevas' },
+    { method: 'GET', path: '/api/sevas/mine', desc: 'List my sevas' },
+    { method: 'POST', path: '/api/sanitation/report', desc: 'Report sanitation issue' },
+    { method: 'GET', path: '/api/sanitation/all', desc: 'List sanitation reports' },
+    { method: 'POST', path: '/api/lost-child/report', desc: 'Report lost child' },
+    { method: 'GET', path: '/api/lost-child/active', desc: 'List active lost child alerts' },
+    { method: 'PUT', path: '/api/lost-child/:alertId/resolve', desc: 'Resolve lost child alert' },
+    { method: 'POST', path: '/api/emergency/report', desc: 'Submit emergency report' },
+    { method: 'POST', path: '/api/emergency/broadcast-position', desc: 'Broadcast authority position' },
+    { method: 'POST', path: '/api/traffic/update-vari-location', desc: 'Update vari location for traffic' },
+    { method: 'GET', path: '/api/traffic/active-diversions', desc: 'List active diversions' },
+    { method: 'GET', path: '/api/admin/all', desc: 'Get all data for admin dashboard' },
+    { method: 'GET', path: '/api/admin/users', desc: 'List all users' },
+    { method: 'GET', path: '/api/admin/devices', desc: 'List all devices' },
+    { method: 'GET', path: '/api/admin/emergency-reports', desc: 'List emergency reports' },
+    { method: 'GET', path: '/api/admin/broadcasts', desc: 'List broadcasts' },
+    { method: 'GET', path: '/api/admin/traffic', desc: 'List traffic entries' },
+    { method: 'GET', path: '/api/palkhi/list', desc: 'List palkhi schedules' },
+    { method: 'GET', path: '/api/palkhi/:key', desc: 'Get palkhi schedule by name' },
+    { method: 'GET', path: '/api/varkari/group-tracking', desc: 'Get crowd-sourced varkari group tracking' },
+  ];
+  res.status(200).json({ status: 'ok', count: routes.length, routes });
+});
+
 function generateToken() {
   return 'tok_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
