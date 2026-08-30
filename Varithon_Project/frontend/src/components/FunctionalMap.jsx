@@ -40,7 +40,7 @@ async function fetchOSRMRoute(coords) {
 export default function FunctionalMap({ selectedSector, onSectorSelect }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const layersRef = useRef({ polylines: [], markers: [], stops: [] });
+  const layersRef = useRef({ polylines: [], markers: [], stops: [], varkari: [] });
   const [palkhiList, setPalkhiList] = useState([]);
   const [selectedPalkhi, setSelectedPalkhi] = useState('');
   const [year, setYear] = useState(new Date().getFullYear());
@@ -52,6 +52,9 @@ export default function FunctionalMap({ selectedSector, onSectorSelect }) {
   const [vehicleRouteStatus, setVehicleRouteStatus] = useState('');
   const [vehicleRouteLoading, setVehicleRouteLoading] = useState(false);
   const vehicleRouteLayerRef = useRef(null);
+  const [trackingMode, setTrackingMode] = useState('headTail');
+  const [varkariGroup, setVarkariGroup] = useState(null);
+  const [groupLoading, setGroupLoading] = useState(false);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -94,7 +97,8 @@ export default function FunctionalMap({ selectedSector, onSectorSelect }) {
     layersRef.current.polylines.forEach((l) => map.removeLayer(l));
     layersRef.current.markers.forEach((m) => map.removeLayer(m));
     layersRef.current.stops.forEach((s) => map.removeLayer(s));
-    layersRef.current = { polylines: [], markers: [], stops: [] };
+    layersRef.current.varkari.forEach((v) => map.removeLayer(v));
+    layersRef.current = { polylines: [], markers: [], stops: [], varkari: [] };
 
     if (!schedule || !schedule.schedule || schedule.schedule.length === 0) return;
 
@@ -171,6 +175,79 @@ export default function FunctionalMap({ selectedSector, onSectorSelect }) {
 
     return () => { cancelled = true; };
   }, [schedule, selectedPalkhi, palkhiList]);
+
+  useEffect(() => {
+    if (trackingMode !== 'group') {
+      setVarkariGroup(null);
+      return;
+    }
+    setGroupLoading(true);
+    api
+      .varkariGroupTracking()
+      .then((data) => {
+        if (data && data.status === 'ok') setVarkariGroup(data);
+      })
+      .catch(() => setVarkariGroup(null))
+      .finally(() => setGroupLoading(false));
+  }, [trackingMode]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    layersRef.current.varkari.forEach((v) => map.removeLayer(v));
+    layersRef.current.varkari = [];
+
+    if (trackingMode !== 'group' || !varkariGroup || !varkariGroup.varkaris) return;
+
+    if (varkariGroup.center) {
+      const groupCircle = L.circleMarker([varkariGroup.center.latitude, varkariGroup.center.longitude], {
+        radius: 12,
+        color: '#1a73e8',
+        fillColor: '#1a73e8',
+        fillOpacity: 0.15,
+        weight: 2,
+        dashArray: '4 4',
+      }).addTo(map);
+      groupCircle.bindPopup(
+        `<strong style="color:#333;font-size:12px;">Group Center</strong>
+         <br><span style="color:#666;font-size:11px;">${varkariGroup.count} active Varkaris</span>
+         <br><span style="color:#888;font-size:10px;">Span: ${varkariGroup.spanKm.toFixed(1)} km</span>`
+      );
+      layersRef.current.varkari.push(groupCircle);
+    }
+
+    if (varkariGroup.bounds) {
+      const bounds = [
+        [varkariGroup.bounds.minLat, varkariGroup.bounds.minLng],
+        [varkariGroup.bounds.maxLat, varkariGroup.bounds.maxLng],
+      ];
+      const rect = L.rectangle(bounds, {
+        color: '#4285F4',
+        weight: 1,
+        fillColor: '#4285F4',
+        fillOpacity: 0.08,
+        dashArray: '6 4',
+      }).addTo(map);
+      layersRef.current.varkari.push(rect);
+    }
+
+    varkariGroup.varkaris.forEach((v) => {
+      if (v.latitude == null || v.longitude == null) return;
+      const dot = L.circleMarker([v.latitude, v.longitude], {
+        radius: 5,
+        color: '#EA4335',
+        fillColor: '#FBBC05',
+        fillOpacity: 0.35,
+        weight: 1,
+      }).addTo(map);
+      dot.bindPopup(
+        `<strong style="color:#333;font-size:12px;">${v.name || 'Varkari'}</strong>
+         <br><span style="color:#666;font-size:11px;">${v.latitude.toFixed(4)}, ${v.longitude.toFixed(4)}</span>
+         ${v.updatedAt ? `<br><span style="color:#888;font-size:10px;">Updated: ${new Date(v.updatedAt).toLocaleTimeString()}</span>` : ''}`
+      );
+      layersRef.current.varkari.push(dot);
+    });
+  }, [trackingMode, varkariGroup]);
 
   const kmBetween = (a, b) => {
     const R = 6371;
@@ -253,6 +330,29 @@ export default function FunctionalMap({ selectedSector, onSectorSelect }) {
         {schedule && (
           <span style={{ fontSize: '12px', color: '#374151', marginLeft: 'auto' }}>
             📅 {schedule.day1Date} → {schedule.ashadhiEkadashiDate} &nbsp;|&nbsp; {schedule.schedule.length} stops
+          </span>
+        )}
+        <button
+          onClick={() => setTrackingMode(trackingMode === 'headTail' ? 'group' : 'headTail')}
+          style={{
+            padding: '6px 12px',
+            borderRadius: '6px',
+            border: '1px solid ' + (trackingMode === 'group' ? '#1a73e8' : '#d1d5db'),
+            background: trackingMode === 'group' ? '#e8f0fe' : '#fff',
+            color: trackingMode === 'group' ? '#1a73e8' : '#374151',
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          {trackingMode === 'group' ? '👥 Group Tracking' : '🚶 Head & Tail'}
+        </button>
+        {trackingMode === 'group' && groupLoading && (
+          <span style={{ fontSize: '12px', color: '#6b7280' }}>Loading varkaris...</span>
+        )}
+        {trackingMode === 'group' && varkariGroup && (
+          <span style={{ fontSize: '12px', color: '#374151', marginLeft: 'auto' }}>
+            👥 {varkariGroup.count} active • Span {varkariGroup.spanKm.toFixed(1)} km
           </span>
         )}
       </div>

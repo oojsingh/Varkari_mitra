@@ -527,6 +527,64 @@ app.get('/api/palkhi/:key', async (req, res) => {
   res.status(200).json({ status: 'ok', data: { palkhiName, day1Date, ashadhiEkadashiDate, schedule } });
 });
 
+function haversine(a, b) {
+  const R = 6371;
+  const dLat = (a[0] - b[0]) * Math.PI / 180;
+  const dLng = (a[1] - b[1]) * Math.PI / 180;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+app.get('/api/varkari/group-tracking', async (req, res) => {
+  const result = await pool.query(
+    `SELECT id, name, last_location FROM users WHERE role = 'varkari' AND location_sharing = true AND last_location IS NOT NULL`
+  );
+  const varkaris = result.rows
+    .map((r) => {
+      const loc = r.last_location;
+      return {
+        id: r.id,
+        name: r.name,
+        latitude: loc && typeof loc.latitude === 'number' ? loc.latitude : null,
+        longitude: loc && typeof loc.longitude === 'number' ? loc.longitude : null,
+        updatedAt: loc && loc.updatedAt ? loc.updatedAt : null,
+      };
+    })
+    .filter((v) => v.latitude != null && v.longitude != null);
+
+  let count = varkaris.length;
+  let centerLat = 0;
+  let centerLng = 0;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+
+  if (count > 0) {
+    varkaris.forEach((v) => {
+      centerLat += v.latitude;
+      centerLng += v.longitude;
+      if (v.latitude < minLat) minLat = v.latitude;
+      if (v.latitude > maxLat) maxLat = v.latitude;
+      if (v.longitude < minLng) minLng = v.longitude;
+      if (v.longitude > maxLng) maxLng = v.longitude;
+    });
+    centerLat = centerLat / count;
+    centerLng = centerLng / count;
+  }
+
+  const spanKm = count > 1 ? haversine([minLat, minLng], [maxLat, maxLng]) : 0;
+
+  res.status(200).json({
+    status: 'ok',
+    count,
+    center: count > 0 ? { latitude: centerLat, longitude: centerLng } : null,
+    bounds: count > 0 ? { minLat, maxLat, minLng, maxLng } : null,
+    spanKm,
+    varkaris,
+  });
+});
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Varithon backend running on http://localhost:${PORT}`);

@@ -30,6 +30,7 @@ export const api = {
   adminAll: () => request('/admin/all'),
   palkhiList: () => request('/palkhi/list'),
   palkhiSchedule: (name, year) => request(`/palkhi/${encodeURIComponent(name)}?year=${year || new Date().getFullYear()}`),
+  varkariGroupTracking: () => request('/varkari/group-tracking'),
 };
 
 export function getToken() { return localStorage.getItem('vm_token'); }
