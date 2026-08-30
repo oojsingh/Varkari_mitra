@@ -29,9 +29,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use('/admin', express.static(join(__dirname, 'admin')));
 
-app.get('/', (req, res) => res.json({ status: 'ok', message: 'Varithon backend API', docs: '/api' }));
-
-app.get('/api', (req, res) => {
+app.get('/', (req, res) => {
   const routes = [
     { method: 'POST', path: '/api/auth/register', desc: 'Register new user' },
     { method: 'POST', path: '/api/auth/login', desc: 'Login with email/password' },
@@ -67,7 +65,8 @@ app.get('/api', (req, res) => {
     { method: 'GET', path: '/api/palkhi/:key', desc: 'Get palkhi schedule by name' },
     { method: 'GET', path: '/api/varkari/group-tracking', desc: 'Get crowd-sourced varkari group tracking' },
   ];
-  res.status(200).json({ status: 'ok', count: routes.length, routes });
+  const rows = routes.map(r => `<tr><td><code>${r.method}</code></td><td><code>${r.path}</code></td><td>${r.desc}</td></tr>`).join('\n');
+  res.status(200).send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Varkari Mitra — API Docs</title><style>body{font-family:Inter,system-ui,sans-serif;background:#f8fafc;color:#1f2937;margin:0;padding:24px}h1{font-size:20px;margin-bottom:4px}p.subtitle{color:#6b7280;margin-top:0;margin-bottom:16px}a{color:#2563eb;text-decoration:none}table{border-collapse:collapse;width:100%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08)}th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:14px}th{background:#f3f4f6;font-weight:600;color:#374151}code{background:#f3f4f6;padding:2px 6px;border-radius:6px;font-size:12px;color:#dc2626}.method{display:inline-block;width:56px}</style></head><body><h1>Varkari Mitra — API Documentation</h1><p class="subtitle">Backend interface for the Varkari Mitra system. Admin dashboard: <a href="/admin">/admin</a></p><table><thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
 });
 
 function generateToken() {
